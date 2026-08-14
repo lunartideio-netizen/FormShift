@@ -1,0 +1,21 @@
+.DS_Store
+/.build/
+/.swiftpm/
+/DerivedData/
+/Artifacts/
+/dist/
+*.dmg
+*.xcarchive
+*.xcresult
+*.profdata
+*.mobileprovision
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+
+# Never commit release credentials
+*.p12
+*.cer
+*.key
+notarytool-credentials.*

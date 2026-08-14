@@ -1,0 +1,8 @@
+# This file is sourced by build-ffmpeg.sh. Use shell-safe values only.
+# The archive was verified against the detached signature published by ffmpeg.org
+# before this SHA-256 was pinned. See THIRD_PARTY_NOTICES.md for the signer.
+FFMPEG_VERSION="8.1.2"
+FFMPEG_SOURCE_URL="https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.xz"
+FFMPEG_SOURCE_SIGNATURE_URL="https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.xz.asc"
+FFMPEG_SOURCE_SIGNING_FINGERPRINT="FCF986EA15E6E293A5644F10B4322F04D67658D8"
+FFMPEG_SOURCE_SHA256="464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c"

@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build macOS 15 / arm64 target
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record official runner environment
+        run: |
+          sw_vers
+          uname -m
+          xcodebuild -version
+          swift --version
+      - name: Build Apple Silicon product
+        run: swift build --arch arm64 --product FormShift
+
+  test:
+    name: Test on official macOS 15 runner
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record test architecture
+        run: |
+          sw_vers
+          uname -m
+          xcodebuild -version
+          swift --version
+      - name: Run tests on runner host architecture
+        run: swift test
+      - name: Run repository static checks
+        env:
+          SKIP_TESTS: "1"
+        run: Scripts/check-repository.sh
+
+# GitHub's public runner architecture can change independently of this repository.
+# The build job always cross-builds the arm64 target. The test job runs tests on the
+# architecture printed above; a physical Apple Silicon release smoke test remains
+# mandatory before publishing a DMG.
