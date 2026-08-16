@@ -63,7 +63,7 @@ else
     echo "warning: packaging a development app without bundled FFmpeg"
 fi
 
-/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${MARKETING_VERSION:-0.1.0-dev}" "$APP_PATH/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${MARKETING_VERSION:-0.3.0-dev}" "$APP_PATH/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${BUILD_NUMBER:-1}" "$APP_PATH/Contents/Info.plist"
 plutil -lint "$APP_PATH/Contents/Info.plist"
 
