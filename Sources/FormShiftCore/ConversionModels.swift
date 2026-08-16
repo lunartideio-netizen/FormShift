@@ -76,6 +76,8 @@ public struct ConversionOptions: Codable, Hashable, Sendable {
     public var normalizeAudio: Bool
     public var removeAudio: Bool
     public var metadataPolicy: MetadataPolicy
+    public var targetFileSizeMB: Double?
+    public var fileNamePattern: String?
 
     public init(
         quality: Double = 0.85,
@@ -101,7 +103,9 @@ public struct ConversionOptions: Codable, Hashable, Sendable {
         trimEndSeconds: Double? = nil,
         normalizeAudio: Bool = false,
         removeAudio: Bool = false,
-        metadataPolicy: MetadataPolicy = .preserve
+        metadataPolicy: MetadataPolicy = .preserve,
+        targetFileSizeMB: Double? = nil,
+        fileNamePattern: String? = nil
     ) {
         self.quality = quality
         self.width = width
@@ -127,6 +131,8 @@ public struct ConversionOptions: Codable, Hashable, Sendable {
         self.normalizeAudio = normalizeAudio
         self.removeAudio = removeAudio
         self.metadataPolicy = metadataPolicy
+        self.targetFileSizeMB = targetFileSizeMB
+        self.fileNamePattern = fileNamePattern
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -134,7 +140,7 @@ public struct ConversionOptions: Codable, Hashable, Sendable {
         case imageColorProfile, pdfRenderScale, pdfPageExportScope, pdfCustomPageRange
         case videoCodec, preferHardwareEncoding, videoBitrateKbps, audioBitrateKbps
         case frameRate, sampleRate, audioChannels, trimStartSeconds, trimEndSeconds
-        case normalizeAudio, removeAudio, metadataPolicy
+        case normalizeAudio, removeAudio, metadataPolicy, targetFileSizeMB, fileNamePattern
     }
 
     public init(from decoder: Decoder) throws {
@@ -163,6 +169,8 @@ public struct ConversionOptions: Codable, Hashable, Sendable {
         normalizeAudio = try values.decodeIfPresent(Bool.self, forKey: .normalizeAudio) ?? false
         removeAudio = try values.decodeIfPresent(Bool.self, forKey: .removeAudio) ?? false
         metadataPolicy = try values.decodeIfPresent(MetadataPolicy.self, forKey: .metadataPolicy) ?? .preserve
+        targetFileSizeMB = try values.decodeIfPresent(Double.self, forKey: .targetFileSizeMB)
+        fileNamePattern = try values.decodeIfPresent(String.self, forKey: .fileNamePattern)
     }
 }
 

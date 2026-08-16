@@ -302,7 +302,14 @@ public final class FFmpegEngine: ConversionEngine, @unchecked Sendable {
                 preferHardware: plan.options.preferHardwareEncoding
             )
             arguments += ["-c:v", encoder]
-            if let bitrate = plan.options.videoBitrateKbps {
+            if let targetMB = plan.options.targetFileSizeMB, targetMB > 0, let dur = effectiveDuration(for: plan), dur > 0 {
+                let targetTotalBits = targetMB * 8 * 1024 * 1024 * 0.94
+                let totalBps = targetTotalBits / dur
+                let audioBps: Double = plan.options.removeAudio ? 0 : 128_000
+                let videoBps = max(120_000, totalBps - audioBps)
+                let videoKbps = Int((videoBps / 1000).rounded())
+                arguments += ["-b:v", "\(videoKbps)k", "-maxrate", "\(Int(Double(videoKbps) * 1.35))k", "-bufsize", "\(videoKbps * 2)k"]
+            } else if let bitrate = plan.options.videoBitrateKbps {
                 arguments += ["-b:v", "\(bitrate)k"]
             }
             let filters = videoFilters(options: plan.options, includeDefaultGIFFrameRate: false)
@@ -324,7 +331,14 @@ public final class FFmpegEngine: ConversionEngine, @unchecked Sendable {
             }
             arguments += ["-c:a", encoder]
             arguments += encoderCompatibilityArguments(for: encoder, options: plan.options)
-            arguments += audioArguments(options: plan.options)
+            if let targetMB = plan.options.targetFileSizeMB, targetMB > 0, let dur = effectiveDuration(for: plan), dur > 0 {
+                let targetTotalBits = targetMB * 8 * 1024 * 1024 * 0.95
+                let totalBps = targetTotalBits / dur
+                let audioKbps = max(32, Int((totalBps / 1000).rounded()))
+                arguments += ["-b:a", "\(audioKbps)k"]
+            } else {
+                arguments += audioArguments(options: plan.options)
+            }
         case .animatedImage:
             arguments.append("-an")
             let filters = videoFilters(options: plan.options, includeDefaultGIFFrameRate: true)

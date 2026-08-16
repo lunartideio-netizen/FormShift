@@ -36,6 +36,7 @@ struct FormShiftSmoke {
         try await testFrameWorkbenchFeatures(root: root)
         try await testPresetImportExport(root: root)
         try await testDocumentWorkbenchFeatures(root: root)
+        try testNamingPatternAndTargetSize(root: root)
         print("FormShift smoke tests passed")
     }
 
@@ -366,6 +367,23 @@ struct FormShiftSmoke {
         _ = try DocumentWorkbenchEngine.convertPDFToText(pdfURL: docPDF, destinationURL: outTxt)
         let extractedText = try String(contentsOf: outTxt, encoding: .utf8)
         try require(extractedText.contains("FormShift"), "Extracted text missing expected content")
+    }
+
+    private static func testNamingPatternAndTargetSize(root: URL) throws {
+        let src = root.appendingPathComponent("photo.png")
+        let destWithPattern = FileSafety.destinationURL(
+            for: src,
+            outputFormat: .jpeg,
+            directory: root,
+            pattern: "{name}_compressed_{format}"
+        )
+        try require(destWithPattern.lastPathComponent == "photo_compressed_jpg.jpg", "Pattern destination mismatch: \(destWithPattern.lastPathComponent)")
+
+        let options = ConversionOptions(targetFileSizeMB: 20.0, fileNamePattern: "{name}_20mb")
+        let data = try JSONEncoder().encode(options)
+        let decoded = try JSONDecoder().decode(ConversionOptions.self, from: data)
+        try require(decoded.targetFileSizeMB == 20.0, "Target file size mismatch")
+        try require(decoded.fileNamePattern == "{name}_20mb", "File name pattern mismatch")
     }
 
     private static func makeBorderedImage(at url: URL) throws {

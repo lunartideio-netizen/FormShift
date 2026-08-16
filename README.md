@@ -15,6 +15,10 @@ FormShift 是一款面向 macOS 的本地格式转换工具。项目目标是把
 - 侧边栏独立「PDF 工作台」，集成四大原生处理模块：多图/单图按序合成多页 PDF（支持自适应、A4、Letter 与边距版式）、多份 PDF/混合文件合并、PDF 拆分（每页一份/固定页数均分/自定义页码区间）、PDF 视觉缩略图页面重排与顺逆时针 90° 旋转剔除，以及 PDF 批量导出图片（整份/单页/自定义区间，1×/2×/3× 渲染精度与智能裁白边）。
 - 侧边栏独立「帧工作台」，集成三大媒体动图与帧处理模块：GIF 拆帧批量导出序列图片、连续图片序列按指定帧率/循环次数合成高质量 GIF 动图，以及视频按固定时间间隔/精准时间戳/固定总帧数批量截帧抽取静帧。
 - 侧边栏独立「文档工作台」，支持双向文档互转：Word (.docx/.doc)、RTF、TXT、CSV 原生转 PDF（Excel/PPT 自动联动本地 LibreOffice）；同时支持 PDF 逆向转可编辑 Word (.docx)、提取表格转 Excel (.xlsx / .csv) 与纯文本 (.txt)。
+- 智能目标体积压缩：检查器提供「限制目标体积 (MB)」功能（内置 2MB、10MB、20MB 微信等预设），底层自动计算安全码率压制。
+- 批量文件名命名模板：支持 `{name}`, `{date}`, `{format}` 等通配符，规范批量输出文件名。
+- 菜单栏极速投递区（MenuBar Extra）：常驻顶部菜单栏，可随时展开微型投递窗或在后台接收拖放文件转换。
+- 系统级文件关联与快捷打开：支持拖入、Finder 右键「打开方式」、`formshift://` URL Scheme 外部调用。
 - 历史页面全面升级：支持多选勾选、全选/取消全选、一键批量删除、清空历史与一键将所选历史记录重新恢复加入转换队列。
 - 检查器侧边栏完整开放专业音视频控制：视频码率档位、音频码率档位、精确起止时间裁切、移除音频（静音）以及 EBU R128 音频响度标准化。
 - 预设（Presets）支持完整导入与导出：支持将全部或单个预设导出为 `.formshiftpreset` / JSON 文件，并支持一键导入与去重合并。
@@ -30,6 +34,7 @@ Debug 与 Release 均已通过 `swift build`。无需 XCTest 的 `FormShiftSmoke
 无需 XCTest 的 `FormShiftSmoke` 进一步真实验证了 PDF 语法范围解析、3 图合成多页 PDF、5 页多文档合并、3 种策略拆分、旋转 90°/180° 与重排剔除、批量图片导出尺寸校验与队列多页连续导出回读。
 无需 XCTest 的 `FormShiftSmoke` 同时验证了图片序列合成 GIF 动图与帧数回读、GIF 拆帧导出、预设文件 JSON 序列化与跨会话导入导出。
 无需 XCTest 的 `FormShiftSmoke` 进一步真实验证了文本/Word 生成 PDF、PDF 逆向生成标准 OpenXML .docx 与 .xlsx、CSV 导出与结构化文本提取。
+无需 XCTest 的 `FormShiftSmoke` 验证了命名模板解析替换与目标文件大小参数编解码。
 
 本机只有 Command Line Tools 且缺少 XCTest 模块，`swift test` 尚未执行成功；测试是否通过需要完整 Xcode 或 CI 给出证据。当前生成的 DMG 仅为 ad-hoc 签名开发构建，没有 Developer ID 签名或 Apple 公证，不能冒充正式发行版。
 

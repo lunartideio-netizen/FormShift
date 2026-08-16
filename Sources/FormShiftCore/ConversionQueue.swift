@@ -180,7 +180,8 @@ public actor ConversionQueue {
             let destination = FileSafety.destinationURL(
                 for: job.sourceURL,
                 outputFormat: job.outputFormat,
-                directory: outputDirectory
+                directory: outputDirectory,
+                pattern: job.options.fileNamePattern
             )
             let plan = try engine.makePlan(
                 jobID: jobID,

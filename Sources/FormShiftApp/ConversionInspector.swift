@@ -153,6 +153,20 @@ struct ConversionInspector: View {
             .labelsHidden()
             .frame(maxWidth: .infinity, alignment: .leading)
 
+            VStack(alignment: .leading, spacing: 6) {
+                Text("文件名命名规则")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                TextField("默认: {name} (支持 {name}, {date}, {format})", text: $model.fileNamePattern)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.caption.monospaced())
+                HStack(spacing: 6) {
+                    Button("{name}_转换") { model.fileNamePattern = "{name}_转换" }.buttonStyle(.borderless).font(.caption2)
+                    Button("{name}_{date}") { model.fileNamePattern = "{name}_{date}" }.buttonStyle(.borderless).font(.caption2)
+                    Button("重置") { model.fileNamePattern = "" }.buttonStyle(.borderless).font(.caption2)
+                }
+            }
+
             Label("重名时自动添加序号", systemImage: "shield.checkered")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -172,6 +186,31 @@ struct ConversionInspector: View {
                 Slider(value: $model.quality, in: 0.4...1, step: 0.01)
                     .accessibilityLabel("输出质量")
                     .accessibilityValue(Text(model.quality, format: .percent))
+
+                Divider()
+
+                Toggle("智能限制目标体积 (MB)", isOn: $model.targetSizeEnabled)
+                    .toggleStyle(.checkbox)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if model.targetSizeEnabled {
+                    HStack(spacing: 8) {
+                        TextField("目标大小", value: $model.targetFileSizeMB, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.body.monospacedDigit())
+                            .frame(width: 80)
+                        Text("MB")
+                            .font(.callout.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    HStack(spacing: 6) {
+                        Button("2 MB") { model.targetFileSizeMB = 2.0 }.buttonStyle(.bordered).controlSize(.mini)
+                        Button("10 MB 邮件") { model.targetFileSizeMB = 10.0 }.buttonStyle(.bordered).controlSize(.mini)
+                        Button("20 MB 微信") { model.targetFileSizeMB = 20.0 }.buttonStyle(.bordered).controlSize(.mini)
+                        Button("50 MB") { model.targetFileSizeMB = 50.0 }.buttonStyle(.bordered).controlSize(.mini)
+                    }
+                }
 
                 Divider()
 
@@ -478,12 +517,15 @@ struct ConversionInspector: View {
                     Image(systemName: "arrow.triangle.2.circlepath")
                     Text(model.waitingCount > 0 ? "生成 \(model.waitingCount) 个结果" : "添加文件后转换")
                     Spacer()
-                    Text("⌘↩")
-                        .font(.caption2.monospaced().weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.85))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    HStack(spacing: 4) {
+                        Text("⌘")
+                        Text("↩")
+                    }
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)

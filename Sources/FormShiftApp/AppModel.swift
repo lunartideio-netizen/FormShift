@@ -131,6 +131,9 @@ final class AppModel: ObservableObject {
     @Published var trimEndSeconds: Double = 0
     @Published var normalizeAudio: Bool = false
     @Published var removeAudio: Bool = false
+    @Published var targetSizeEnabled: Bool = false
+    @Published var targetFileSizeMB: Double = 20.0
+    @Published var fileNamePattern: String = ""
     @Published var colorProfile: ImageColorProfile = .automatic
     @Published var pdfImageScale = 2
     @Published var pdfPageExportScope: PDFPageExportScope = .allPages
@@ -863,6 +866,9 @@ final class AppModel: ObservableObject {
         trimEndSeconds = options.trimEndSeconds ?? 0
         normalizeAudio = options.normalizeAudio
         removeAudio = options.removeAudio
+        targetSizeEnabled = options.targetFileSizeMB != nil
+        targetFileSizeMB = options.targetFileSizeMB ?? 20.0
+        fileNamePattern = options.fileNamePattern ?? ""
     }
 
     private func currentOptions(for outputFormat: FormatID) -> ConversionOptions {
@@ -899,7 +905,9 @@ final class AppModel: ObservableObject {
             trimEndSeconds: trimEnabled && trimEndSeconds > trimStartSeconds ? trimEndSeconds : nil,
             normalizeAudio: normalizeAudio,
             removeAudio: removeAudio,
-            metadataPolicy: removeMetadata ? .remove : .preserve
+            metadataPolicy: removeMetadata ? .remove : .preserve,
+            targetFileSizeMB: targetSizeEnabled && targetFileSizeMB > 0 ? targetFileSizeMB : nil,
+            fileNamePattern: fileNamePattern.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : fileNamePattern
         )
     }
 
