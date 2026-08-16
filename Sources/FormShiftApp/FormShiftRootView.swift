@@ -103,6 +103,7 @@ private struct FormShiftSidebar: View {
     private func count(for section: WorkspaceSection) -> Int? {
         switch section {
         case .convert: model.waitingCount
+        case .pdf: nil
         case .queue: model.waitingCount + model.runningCount
         case .history: model.finishedCount
         case .presets: model.presets.count
@@ -121,6 +122,8 @@ private struct WorkspaceView: View {
 
             Group {
                 switch model.selection {
+                case .pdf:
+                    PDFWorkbenchView()
                 case .presets:
                     PresetsView()
                 default:
@@ -158,7 +161,7 @@ private struct WorkspaceHeader: View {
                 .help(model.isPaused ? "允许下一个任务开始" : "当前任务结束后暂停队列")
             }
 
-            if model.selection != .presets {
+            if model.selection != .presets && model.selection != .pdf {
                 Button {
                     model.presentImporter()
                 } label: {
@@ -176,6 +179,7 @@ private struct WorkspaceHeader: View {
     private var subtitle: String {
         switch model.selection {
         case .convert: "选择输出格式，然后开始转换"
+        case .pdf: "多图转 PDF、PDF 合并、拆分、页面重排与批量导出图片"
         case .queue: model.isPaused ? "队列已暂停，当前任务不会被强制中断" : "按顺序处理，重型任务一次运行一个"
         case .history: "点击记录可恢复上次设置并再次转换"
         case .presets: "保存常用格式与参数组合"

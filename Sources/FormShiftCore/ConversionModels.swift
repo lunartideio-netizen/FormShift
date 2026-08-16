@@ -31,6 +31,12 @@ public enum ImageColorProfile: String, Codable, CaseIterable, Sendable {
     case displayP3
 }
 
+public enum PDFPageExportScope: String, Codable, CaseIterable, Sendable {
+    case allPages
+    case firstPage
+    case customRange
+}
+
 public struct CropRect: Codable, Hashable, Sendable {
     public var x: Int
     public var y: Int
@@ -56,6 +62,8 @@ public struct ConversionOptions: Codable, Hashable, Sendable {
     public var rotationDegrees: Int
     public var imageColorProfile: ImageColorProfile
     public var pdfRenderScale: Int
+    public var pdfPageExportScope: PDFPageExportScope
+    public var pdfCustomPageRange: String?
     public var videoCodec: VideoCodec
     public var preferHardwareEncoding: Bool
     public var videoBitrateKbps: Int?
@@ -80,6 +88,8 @@ public struct ConversionOptions: Codable, Hashable, Sendable {
         rotationDegrees: Int = 0,
         imageColorProfile: ImageColorProfile = .automatic,
         pdfRenderScale: Int = 2,
+        pdfPageExportScope: PDFPageExportScope = .allPages,
+        pdfCustomPageRange: String? = nil,
         videoCodec: VideoCodec = .automatic,
         preferHardwareEncoding: Bool = true,
         videoBitrateKbps: Int? = nil,
@@ -103,6 +113,8 @@ public struct ConversionOptions: Codable, Hashable, Sendable {
         self.rotationDegrees = rotationDegrees
         self.imageColorProfile = imageColorProfile
         self.pdfRenderScale = pdfRenderScale
+        self.pdfPageExportScope = pdfPageExportScope
+        self.pdfCustomPageRange = pdfCustomPageRange
         self.videoCodec = videoCodec
         self.preferHardwareEncoding = preferHardwareEncoding
         self.videoBitrateKbps = videoBitrateKbps
@@ -119,7 +131,7 @@ public struct ConversionOptions: Codable, Hashable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case quality, width, height, preserveAspectRatio, imageSizingMode, trimBorders, crop, rotationDegrees
-        case imageColorProfile, pdfRenderScale
+        case imageColorProfile, pdfRenderScale, pdfPageExportScope, pdfCustomPageRange
         case videoCodec, preferHardwareEncoding, videoBitrateKbps, audioBitrateKbps
         case frameRate, sampleRate, audioChannels, trimStartSeconds, trimEndSeconds
         case normalizeAudio, removeAudio, metadataPolicy
@@ -137,6 +149,8 @@ public struct ConversionOptions: Codable, Hashable, Sendable {
         rotationDegrees = try values.decodeIfPresent(Int.self, forKey: .rotationDegrees) ?? 0
         imageColorProfile = try values.decodeIfPresent(ImageColorProfile.self, forKey: .imageColorProfile) ?? .automatic
         pdfRenderScale = try values.decodeIfPresent(Int.self, forKey: .pdfRenderScale) ?? 2
+        pdfPageExportScope = try values.decodeIfPresent(PDFPageExportScope.self, forKey: .pdfPageExportScope) ?? .allPages
+        pdfCustomPageRange = try values.decodeIfPresent(String.self, forKey: .pdfCustomPageRange)
         videoCodec = try values.decodeIfPresent(VideoCodec.self, forKey: .videoCodec) ?? .automatic
         preferHardwareEncoding = try values.decodeIfPresent(Bool.self, forKey: .preferHardwareEncoding) ?? true
         videoBitrateKbps = try values.decodeIfPresent(Int.self, forKey: .videoBitrateKbps)

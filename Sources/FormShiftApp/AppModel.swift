@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 
 enum WorkspaceSection: String, CaseIterable, Identifiable {
     case convert
+    case pdf
     case queue
     case history
     case presets
@@ -17,6 +18,7 @@ enum WorkspaceSection: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .convert: "转换"
+        case .pdf: "PDF 工作台"
         case .queue: "队列"
         case .history: "历史"
         case .presets: "预设"
@@ -26,6 +28,7 @@ enum WorkspaceSection: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .convert: "arrow.triangle.2.circlepath"
+        case .pdf: "doc.richtext"
         case .queue: "list.bullet.rectangle"
         case .history: "clock.arrow.circlepath"
         case .presets: "slider.horizontal.2.square"
@@ -117,6 +120,8 @@ final class AppModel: ObservableObject {
     @Published var audioChannels = 2
     @Published var colorProfile: ImageColorProfile = .automatic
     @Published var pdfImageScale = 2
+    @Published var pdfPageExportScope: PDFPageExportScope = .allPages
+    @Published var pdfCustomPageRange = ""
     @Published var presets: [Preset] = []
     @Published var outputLocation: OutputLocation = .sourceFolder
     @Published var isAdvancedExpanded = false
@@ -146,6 +151,7 @@ final class AppModel: ObservableObject {
     var visibleJobs: [UIJobItem] {
         switch selection {
         case .convert: jobs.filter { $0.status == .waiting || $0.status == .analyzing || $0.status == .running }
+        case .pdf: []
         case .queue: jobs.filter {
             $0.status == .waiting || $0.status == .analyzing || $0.status == .running
                 || (submittedJobIDs.contains($0.id) && $0.status != .succeeded)
@@ -713,6 +719,8 @@ final class AppModel: ObservableObject {
         rotationDegrees = options.rotationDegrees
         colorProfile = options.imageColorProfile
         pdfImageScale = options.pdfRenderScale
+        pdfPageExportScope = options.pdfPageExportScope
+        pdfCustomPageRange = options.pdfCustomPageRange ?? ""
         removeMetadata = options.metadataPolicy == .remove
         codec = options.videoCodec
         hardwareEncoding = options.preferHardwareEncoding
@@ -740,6 +748,8 @@ final class AppModel: ObservableObject {
             rotationDegrees: rotationDegrees,
             imageColorProfile: colorProfile,
             pdfRenderScale: pdfImageScale,
+            pdfPageExportScope: pdfPageExportScope,
+            pdfCustomPageRange: pdfCustomPageRange.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : pdfCustomPageRange,
             videoCodec: codec,
             preferHardwareEncoding: hardwareEncoding,
             frameRate: outputFormat.category == .video || outputFormat.category == .animatedImage

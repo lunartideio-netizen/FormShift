@@ -51,7 +51,7 @@ public final class PDFEngine: ConversionEngine, @unchecked Sendable {
                 byteCount: (attributes[.size] as? NSNumber)?.int64Value ?? 0,
                 pixelWidth: Int(bounds.width.rounded()),
                 pixelHeight: Int(bounds.height.rounded()),
-                codecName: "PDF (\(document.numberOfPages) pages)"
+                codecName: "PDF (\(document.numberOfPages) 页)"
             )
         }
 
@@ -106,7 +106,7 @@ public final class PDFEngine: ConversionEngine, @unchecked Sendable {
         do {
             progress(.init(fraction: 0.1, detail: "正在读取文件"))
             if plan.source.format == .pdf {
-                try exportFirstPDFPage(plan: plan, progress: progress)
+                try exportPDFPages(plan: plan, progress: progress)
             } else {
                 try createSinglePagePDF(plan: plan, progress: progress)
             }
@@ -127,65 +127,96 @@ public final class PDFEngine: ConversionEngine, @unchecked Sendable {
         // Core Graphics PDF 操作为同步操作；Task 取消会在阶段边界生效。
     }
 
-    private func exportFirstPDFPage(
+    private func exportPDFPages(
         plan: ConversionPlan,
         progress: @escaping @Sendable (ConversionProgress) -> Void
     ) throws {
         guard let document = CGPDFDocument(plan.source.url as CFURL),
-              let page = document.page(at: 1) else {
+              document.numberOfPages > 0 else {
             throw ConversionError.unsupportedInput(plan.source.url)
         }
-        let pageBox = page.getBoxRect(.mediaBox)
-        let targetSize = plan.options.trimBorders
-            ? CGSize(
-                width: max(1, pageBox.width * CGFloat(plan.options.pdfRenderScale)),
-                height: max(1, pageBox.height * CGFloat(plan.options.pdfRenderScale))
+        let totalPages = document.numberOfPages
+        let targetPages: [Int]
+        switch plan.options.pdfPageExportScope {
+        case .allPages:
+            targetPages = Array(1...totalPages)
+        case .firstPage:
+            targetPages = [1]
+        case .customRange:
+            let parsed = PDFPageRangeParser.parse(plan.options.pdfCustomPageRange ?? "", totalPages: totalPages)
+            targetPages = parsed.isEmpty ? [1] : parsed
+        }
+
+        let count = Double(targetPages.count)
+        let digits = max(2, String(totalPages).count)
+        let destDir = plan.destinationURL.deletingLastPathComponent()
+        let baseName = plan.destinationURL.deletingPathExtension().lastPathComponent
+        let ext = plan.outputFormat.fileExtension
+
+        for (idx, pageNum) in targetPages.enumerated() {
+            guard let page = document.page(at: pageNum) else { continue }
+            let pageBox = page.getBoxRect(.mediaBox)
+            let targetSize = plan.options.trimBorders
+                ? CGSize(
+                    width: max(1, pageBox.width * CGFloat(plan.options.pdfRenderScale)),
+                    height: max(1, pageBox.height * CGFloat(plan.options.pdfRenderScale))
+                )
+                : resolvedPDFRasterSize(pageBox: pageBox, options: plan.options)
+            let colorSpace = ImageRenderer.outputColorSpace(for: plan.options.imageColorProfile)
+            guard
+                  let context = CGContext(
+                    data: nil,
+                    width: Int(targetSize.width),
+                    height: Int(targetSize.height),
+                    bitsPerComponent: 8,
+                    bytesPerRow: 0,
+                    space: colorSpace,
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                  ) else {
+                throw ConversionError.processFailed("无法创建 PDF 页面画布")
+            }
+            context.setFillColor(CGColor(gray: 1, alpha: 1))
+            context.fill(CGRect(origin: .zero, size: targetSize))
+            let targetRect = CGRect(origin: .zero, size: targetSize)
+            let drawingRect = pdfDrawingRect(
+                pageBox: pageBox,
+                targetRect: targetRect,
+                rotationDegrees: plan.options.rotationDegrees,
+                mode: plan.options.trimBorders ? .fit : plan.options.imageSizingMode
             )
-            : resolvedPDFRasterSize(pageBox: pageBox, options: plan.options)
-        let colorSpace = ImageRenderer.outputColorSpace(for: plan.options.imageColorProfile)
-        guard
-              let context = CGContext(
-                data: nil,
-                width: Int(targetSize.width),
-                height: Int(targetSize.height),
-                bitsPerComponent: 8,
-                bytesPerRow: 0,
-                space: colorSpace,
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-              ) else {
-            throw ConversionError.processFailed("无法创建 PDF 页面画布")
+            context.concatenate(page.getDrawingTransform(
+                .mediaBox,
+                rect: drawingRect,
+                rotate: Int32(plan.options.rotationDegrees),
+                preserveAspectRatio: plan.options.imageSizingMode != .stretch
+            ))
+            context.drawPDFPage(page)
+            guard var image = context.makeImage() else {
+                throw ConversionError.processFailed("无法渲染 PDF 第 \(pageNum) 页")
+            }
+            if plan.options.trimBorders {
+                image = ImageRenderer.trimBorders(in: image)
+                image = ImageRenderer.resize(image, options: plan.options)
+            }
+            let detailMsg = targetPages.count > 1 ? "正在导出第 \(pageNum)/\(totalPages) 页" : "正在导出 PDF 页面"
+            progress(.init(fraction: 0.1 + (Double(idx) / count) * 0.8, detail: detailMsg))
+
+            let writeURL: URL
+            if idx == 0 {
+                writeURL = plan.temporaryURL
+            } else {
+                let pageSuffix = String(format: "_%0\(digits)d", pageNum)
+                writeURL = destDir.appendingPathComponent("\(baseName)\(pageSuffix)").appendingPathExtension(ext)
+            }
+
+            try ImageRenderer.write(
+                image: image,
+                sourceProperties: [:],
+                to: writeURL,
+                format: plan.outputFormat,
+                options: plan.options
+            )
         }
-        context.setFillColor(CGColor(gray: 1, alpha: 1))
-        context.fill(CGRect(origin: .zero, size: targetSize))
-        let targetRect = CGRect(origin: .zero, size: targetSize)
-        let drawingRect = pdfDrawingRect(
-            pageBox: pageBox,
-            targetRect: targetRect,
-            rotationDegrees: plan.options.rotationDegrees,
-            mode: plan.options.trimBorders ? .fit : plan.options.imageSizingMode
-        )
-        context.concatenate(page.getDrawingTransform(
-            .mediaBox,
-            rect: drawingRect,
-            rotate: Int32(plan.options.rotationDegrees),
-            preserveAspectRatio: plan.options.imageSizingMode != .stretch
-        ))
-        context.drawPDFPage(page)
-        guard var image = context.makeImage() else {
-            throw ConversionError.processFailed("无法渲染 PDF 首页")
-        }
-        if plan.options.trimBorders {
-            image = ImageRenderer.trimBorders(in: image)
-            image = ImageRenderer.resize(image, options: plan.options)
-        }
-        progress(.init(fraction: 0.7, detail: "正在导出 PDF 首页"))
-        try ImageRenderer.write(
-            image: image,
-            sourceProperties: [:],
-            to: plan.temporaryURL,
-            format: plan.outputFormat,
-            options: plan.options
-        )
     }
 
     private func createSinglePagePDF(

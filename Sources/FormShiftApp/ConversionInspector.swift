@@ -293,6 +293,7 @@ struct ConversionInspector: View {
                 imageTransformFields
 
                 if model.selectedJob?.sourceFormat == .pdf {
+                    pdfPageScopeField
                     pdfRenderScaleField
                 }
 
@@ -361,6 +362,25 @@ struct ConversionInspector: View {
                 Text("高精度 · 3×").tag(3)
             }
             .labelsHidden()
+        }
+    }
+
+    @ViewBuilder
+    private var pdfPageScopeField: some View {
+        InspectorControlRow(label: "导出页面") {
+            Picker("导出范围", selection: $model.pdfPageExportScope) {
+                Text("所有页面").tag(PDFPageExportScope.allPages)
+                Text("仅第 1 页").tag(PDFPageExportScope.firstPage)
+                Text("指定页码").tag(PDFPageExportScope.customRange)
+            }
+            .labelsHidden()
+        }
+        if model.pdfPageExportScope == .customRange {
+            InspectorControlRow(label: "页码范围") {
+                TextField("例如: 1-3, 5, 8", text: $model.pdfCustomPageRange)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.caption.monospaced())
+            }
         }
     }
 

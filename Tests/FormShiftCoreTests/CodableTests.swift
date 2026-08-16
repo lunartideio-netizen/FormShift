@@ -15,6 +15,8 @@ final class CodableTests: XCTestCase {
             rotationDegrees: 90,
             imageColorProfile: .displayP3,
             pdfRenderScale: 3,
+            pdfPageExportScope: .customRange,
+            pdfCustomPageRange: "1-3, 5",
             videoCodec: .hevc,
             preferHardwareEncoding: false,
             videoBitrateKbps: 8_000,
@@ -44,6 +46,8 @@ final class CodableTests: XCTestCase {
         XCTAssertFalse(decoded.trimBorders)
         XCTAssertEqual(decoded.imageColorProfile, .automatic)
         XCTAssertEqual(decoded.pdfRenderScale, 2)
+        XCTAssertEqual(decoded.pdfPageExportScope, .allPages)
+        XCTAssertNil(decoded.pdfCustomPageRange)
     }
 
     func testConversionJobJSONRoundTripPreservesState() throws {
@@ -78,5 +82,19 @@ final class CodableTests: XCTestCase {
         XCTAssertEqual(ConversionProgress(fraction: -0.5).fraction, 0)
         XCTAssertEqual(ConversionProgress(fraction: 0.4).fraction, 0.4)
         XCTAssertEqual(ConversionProgress(fraction: 2).fraction, 1)
+    }
+
+    func testPDFPageRangeParser() {
+        XCTAssertEqual(PDFPageRangeParser.parse("1-3, 5, 8", totalPages: 10), [1, 2, 3, 5, 8])
+        XCTAssertEqual(PDFPageRangeParser.parse("", totalPages: 10), [])
+        XCTAssertEqual(PDFPageRangeParser.parse("10-15", totalPages: 12), [10, 11, 12])
+        XCTAssertEqual(PDFPageRangeParser.parse("3-1", totalPages: 5), [1, 2, 3])
+    }
+
+    func testPDFModelsRoundTrip() throws {
+        let spec = PDFPageSpec(originalPageIndex: 3, rotationAngle: 90, isIncluded: true)
+        let data = try JSONEncoder().encode(spec)
+        let decoded = try JSONDecoder().decode(PDFPageSpec.self, from: data)
+        XCTAssertEqual(decoded, spec)
     }
 }
