@@ -27,32 +27,51 @@ struct FormShiftRootView: View {
 private struct FormShiftSidebar: View {
     @EnvironmentObject private var model: AppModel
 
+    private struct SidebarGroup: Identifiable {
+        let id: String
+        let title: String
+        let sections: [WorkspaceSection]
+    }
+
+    private let groups: [SidebarGroup] = [
+        SidebarGroup(id: "conversion", title: "常规转换", sections: [.convert, .queue]),
+        SidebarGroup(id: "tools", title: "专项工作台", sections: [.pdf, .frames, .docs]),
+        SidebarGroup(id: "management", title: "记录与预设", sections: [.history, .presets])
+    ]
+
     var body: some View {
         VStack(spacing: 0) {
             brand
                 .padding(.horizontal, 16)
                 .padding(.top, 18)
-                .padding(.bottom, 20)
+                .padding(.bottom, 14)
 
-            List(WorkspaceSection.allCases, selection: $model.selection) { section in
-                Label {
-                    HStack {
-                        Text(section.title)
-                        Spacer()
-                        if let count = count(for: section), count > 0 {
-                            Text(count, format: .number)
-                                .font(.caption.monospacedDigit().weight(.medium))
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 2)
-                                .background(.primary.opacity(0.07), in: Capsule())
+            List(selection: $model.selection) {
+                ForEach(groups) { group in
+                    Section(group.title) {
+                        ForEach(group.sections) { section in
+                            HStack(spacing: 10) {
+                                Image(systemName: section.symbol)
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .frame(width: 20, alignment: .center)
+                                    .foregroundStyle(model.selection == section ? Color.accentColor : FormShiftTheme.graphite)
+                                Text(section.title)
+                                    .font(.callout)
+                                Spacer()
+                                if let count = count(for: section), count > 0 {
+                                    Text(count, format: .number)
+                                        .font(.caption2.monospacedDigit().weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(.primary.opacity(0.08), in: Capsule())
+                                }
+                            }
+                            .tag(section)
+                            .accessibilityLabel("\(section.title)\(count(for: section).map { "，\($0) 项" } ?? "")")
                         }
                     }
-                } icon: {
-                    Image(systemName: section.symbol)
                 }
-                .tag(section)
-                .accessibilityLabel("\(section.title)\(count(for: section).map { "，\($0) 项" } ?? "")")
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)

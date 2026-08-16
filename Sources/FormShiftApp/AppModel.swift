@@ -8,10 +8,10 @@ import UniformTypeIdentifiers
 
 enum WorkspaceSection: String, CaseIterable, Identifiable {
     case convert
+    case queue
     case pdf
     case frames
     case docs
-    case queue
     case history
     case presets
 
@@ -19,13 +19,13 @@ enum WorkspaceSection: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .convert: "转换"
+        case .convert: "格式转换"
+        case .queue: "任务队列"
         case .pdf: "PDF 工作台"
-        case .frames: "帧工作台"
-        case .docs: "文档工作台"
-        case .queue: "队列"
-        case .history: "历史"
-        case .presets: "预设"
+        case .frames: "帧与动图"
+        case .docs: "文档互转"
+        case .history: "历史记录"
+        case .presets: "预设方案"
         }
     }
 
