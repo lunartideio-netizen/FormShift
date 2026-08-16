@@ -330,7 +330,7 @@ public final class FFmpegEngine: ConversionEngine, @unchecked Sendable {
             let filters = videoFilters(options: plan.options, includeDefaultGIFFrameRate: true)
             if !filters.isEmpty { arguments += ["-vf", filters.joined(separator: ",")] }
             arguments += ["-loop", "0"]
-        case .image, .pdf:
+        case .image, .pdf, .document:
             throw ConversionError.unsupportedConversion(plan.source.format, plan.outputFormat)
         }
 
@@ -664,7 +664,7 @@ public final class FFmpegEngine: ConversionEngine, @unchecked Sendable {
         case .flac: "flac"
         case .ogg: "ogg"
         case .opus: "opus"
-        case .jpeg, .png, .heic, .tiff, .bmp, .webp, .avif, .pdf: "data"
+        default: "data"
         }
     }
 

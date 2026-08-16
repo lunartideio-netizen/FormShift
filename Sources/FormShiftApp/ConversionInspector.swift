@@ -331,7 +331,7 @@ struct ConversionInspector: View {
                     pdfRenderScaleField
                 }
 
-            case .pdf:
+            case .pdf, .document:
                 imageTransformFields
             }
         }
@@ -354,7 +354,7 @@ struct ConversionInspector: View {
         switch model.targetFormat.category {
         case .video, .animatedImage: "编码器、码率、裁切与硬件加速"
         case .audio: "采样率、声道、码率与响度"
-        case .image, .pdf: "旋转、裁剪与色彩"
+        case .image, .pdf, .document: "旋转、裁剪与色彩"
         }
     }
 

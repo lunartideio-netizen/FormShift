@@ -7,6 +7,7 @@ public enum MediaCategory: String, Codable, CaseIterable, Sendable {
     case audio
     case pdf
     case animatedImage
+    case document
 
     public var displayName: String {
         switch self {
@@ -15,6 +16,7 @@ public enum MediaCategory: String, Codable, CaseIterable, Sendable {
         case .audio: "音频"
         case .pdf: "PDF"
         case .animatedImage: "GIF"
+        case .document: "文档"
         }
     }
 }
@@ -24,6 +26,7 @@ public enum FormatID: String, Codable, CaseIterable, Identifiable, Sendable {
     case mp4, mov, mkv, webm
     case mp3, m4a, aac, wav, aiff, flac, alac, ogg, opus
     case pdf
+    case docx, doc, xlsx, xls, pptx, ppt, rtf, txt, csv
 
     public var id: String { rawValue }
     public var fileExtension: String { rawValue == "jpeg" ? "jpg" : rawValue }
@@ -41,6 +44,8 @@ public enum FormatID: String, Codable, CaseIterable, Identifiable, Sendable {
             .audio
         case .pdf:
             .pdf
+        case .docx, .doc, .xlsx, .xls, .pptx, .ppt, .rtf, .txt, .csv:
+            .document
         }
     }
 

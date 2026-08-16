@@ -10,6 +10,7 @@ enum WorkspaceSection: String, CaseIterable, Identifiable {
     case convert
     case pdf
     case frames
+    case docs
     case queue
     case history
     case presets
@@ -21,6 +22,7 @@ enum WorkspaceSection: String, CaseIterable, Identifiable {
         case .convert: "转换"
         case .pdf: "PDF 工作台"
         case .frames: "帧工作台"
+        case .docs: "文档工作台"
         case .queue: "队列"
         case .history: "历史"
         case .presets: "预设"
@@ -32,6 +34,7 @@ enum WorkspaceSection: String, CaseIterable, Identifiable {
         case .convert: "arrow.triangle.2.circlepath"
         case .pdf: "doc.richtext"
         case .frames: "film.stack"
+        case .docs: "doc.text.fill"
         case .queue: "list.bullet.rectangle"
         case .history: "clock.arrow.circlepath"
         case .presets: "slider.horizontal.2.square"
@@ -138,6 +141,7 @@ final class AppModel: ObservableObject {
     @Published var isPaused = false
     @Published var isDropTargeted = false
     @Published var importNotice: String?
+    @Published var selectedHistoryIDs: Set<UUID> = []
 
     @Published var supportedFormats = FormatID.allCases
 
@@ -163,6 +167,7 @@ final class AppModel: ObservableObject {
         case .convert: jobs.filter { $0.status == .waiting || $0.status == .analyzing || $0.status == .running }
         case .pdf: []
         case .frames: []
+        case .docs: []
         case .queue: jobs.filter {
             $0.status == .waiting || $0.status == .analyzing || $0.status == .running
                 || (submittedJobIDs.contains($0.id) && $0.status != .succeeded)
@@ -621,6 +626,70 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func toggleHistorySelection(id: UUID) {
+        if selectedHistoryIDs.contains(id) {
+            selectedHistoryIDs.remove(id)
+        } else {
+            selectedHistoryIDs.insert(id)
+        }
+    }
+
+    func selectAllHistory() {
+        let finished = jobs.filter { [.succeeded, .failed, .cancelled, .interrupted].contains($0.status) }.map(\.id)
+        selectedHistoryIDs = Set(finished)
+    }
+
+    func deselectAllHistory() {
+        selectedHistoryIDs.removeAll()
+    }
+
+    func deleteSelectedHistory() {
+        let toDelete = selectedHistoryIDs
+        guard !toDelete.isEmpty else { return }
+        jobs.removeAll { toDelete.contains($0.id) }
+        if let selectedJobID, toDelete.contains(selectedJobID) {
+            self.selectedJobID = jobs.first?.id
+        }
+        selectedHistoryIDs.removeAll()
+        if let persistence {
+            Task {
+                for id in toDelete {
+                    try? await persistence.deleteJob(id: id)
+                }
+            }
+        }
+        importNotice = "已删除 \(toDelete.count) 条历史记录。"
+    }
+
+    func requeueSelectedHistory() {
+        let toRequeue = selectedHistoryIDs
+        guard !toRequeue.isEmpty else { return }
+        var count = 0
+        for id in toRequeue {
+            guard let original = jobs.first(where: { $0.id == id }),
+                  FileManager.default.fileExists(atPath: original.sourceURL.path) else { continue }
+            let restored = UIJobItem(
+                sourceURL: original.sourceURL,
+                sourceFormat: original.sourceFormat,
+                outputFormat: original.outputFormat,
+                status: .waiting,
+                byteCount: original.byteCount,
+                options: original.options
+            )
+            jobs.append(restored)
+            count += 1
+        }
+        selectedHistoryIDs.removeAll()
+        selection = .convert
+        importNotice = "已将 \(count) 个历史任务重新加入转换队列。"
+    }
+
+    func clearAllHistory() {
+        clearFinished()
+        selectedHistoryIDs.removeAll()
+        importNotice = "历史记录已全部清空。"
+    }
+
     func exportAllPresets(to url: URL) throws {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
@@ -907,6 +976,7 @@ final class AppModel: ObservableObject {
         case .video: .mp4
         case .audio: .m4a
         case .pdf: .png
+        case .document: .pdf
         }
         let outputs = outputsByInput[input] ?? []
         return outputs.contains(preferred) ? preferred : (supportedFormats.first { outputs.contains($0) } ?? preferred)

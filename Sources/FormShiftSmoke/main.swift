@@ -35,6 +35,7 @@ struct FormShiftSmoke {
         try await testPDFWorkbenchFeatures(root: root)
         try await testFrameWorkbenchFeatures(root: root)
         try await testPresetImportExport(root: root)
+        try await testDocumentWorkbenchFeatures(root: root)
         print("FormShift smoke tests passed")
     }
 
@@ -320,6 +321,51 @@ struct FormShiftSmoke {
         let decoded = try JSONDecoder().decode([Preset].self, from: decodedData)
         try require(decoded.count == 2, "Decoded presets count was \(decoded.count), expected 2")
         try require(decoded[0].name == "测试高清", "Decoded preset name mismatch")
+    }
+
+    private static func testDocumentWorkbenchFeatures(root: URL) async throws {
+        let testDir = root.appendingPathComponent("doc-workbench", isDirectory: true)
+        try FileManager.default.createDirectory(at: testDir, withIntermediateDirectories: true)
+
+        // 1. Text / RTF to PDF
+        let textFile = testDir.appendingPathComponent("sample.txt")
+        try "FormShift 本地文档排版测试\n这是第二行测试文字。".write(to: textFile, atomically: true, encoding: .utf8)
+        let docPDF = testDir.appendingPathComponent("from_text.pdf")
+        _ = try DocumentWorkbenchEngine.convertOfficeToPDF(sourceURL: textFile, destinationURL: docPDF)
+        guard let pdfDoc = PDFDocument(url: docPDF) else {
+            throw SmokeFailure.failed("Cannot open converted PDF from text")
+        }
+        try require(pdfDoc.pageCount >= 1, "Text to PDF page count was 0")
+
+        // 2. PDF to Word (.docx)
+        let outWord = testDir.appendingPathComponent("converted.docx")
+        _ = try DocumentWorkbenchEngine.convertPDFToWord(pdfURL: docPDF, destinationURL: outWord)
+        guard FileManager.default.fileExists(atPath: outWord.path) else {
+            throw SmokeFailure.failed("DOCX output was not created")
+        }
+        let wordData = try Data(contentsOf: outWord)
+        try require(wordData.count > 100, "DOCX file was too small: \(wordData.count) bytes")
+        try require(wordData.starts(with: [0x50, 0x4B, 0x03, 0x04]), "DOCX is not a valid zip archive")
+
+        // 3. PDF to Excel (.xlsx and .csv)
+        let outXlsx = testDir.appendingPathComponent("converted.xlsx")
+        _ = try DocumentWorkbenchEngine.convertPDFToExcel(pdfURL: docPDF, destinationURL: outXlsx, asCSV: false)
+        guard FileManager.default.fileExists(atPath: outXlsx.path) else {
+            throw SmokeFailure.failed("XLSX output was not created")
+        }
+        let xlsxData = try Data(contentsOf: outXlsx)
+        try require(xlsxData.starts(with: [0x50, 0x4B, 0x03, 0x04]), "XLSX is not a valid zip archive")
+
+        let outCSV = testDir.appendingPathComponent("converted.csv")
+        _ = try DocumentWorkbenchEngine.convertPDFToExcel(pdfURL: docPDF, destinationURL: outCSV, asCSV: true)
+        let csvText = try String(contentsOf: outCSV, encoding: .utf8)
+        try require(!csvText.isEmpty, "CSV output was empty")
+
+        // 4. PDF to Text
+        let outTxt = testDir.appendingPathComponent("converted.txt")
+        _ = try DocumentWorkbenchEngine.convertPDFToText(pdfURL: docPDF, destinationURL: outTxt)
+        let extractedText = try String(contentsOf: outTxt, encoding: .utf8)
+        try require(extractedText.contains("FormShift"), "Extracted text missing expected content")
     }
 
     private static func makeBorderedImage(at url: URL) throws {

@@ -9,6 +9,18 @@ struct JobRow: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 14) {
+                if model.selection == .history {
+                    Button {
+                        model.toggleHistorySelection(id: job.id)
+                    } label: {
+                        Image(systemName: model.selectedHistoryIDs.contains(job.id) ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(model.selectedHistoryIDs.contains(job.id) ? FormShiftTheme.cobalt : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(model.selectedHistoryIDs.contains(job.id) ? "已选中" : "未选中")
+                }
+
                 fileGlyph
 
                 VStack(alignment: .leading, spacing: 5) {
@@ -149,6 +161,7 @@ struct JobRow: View {
         case .audio: "waveform"
         case .pdf: "doc.richtext"
         case .animatedImage: "sparkles.rectangle.stack"
+        case .document: "doc.text.fill"
         case .none: "doc"
         }
     }

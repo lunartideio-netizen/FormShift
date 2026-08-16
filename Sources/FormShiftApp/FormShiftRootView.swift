@@ -105,6 +105,7 @@ private struct FormShiftSidebar: View {
         case .convert: model.waitingCount
         case .pdf: nil
         case .frames: nil
+        case .docs: nil
         case .queue: model.waitingCount + model.runningCount
         case .history: model.finishedCount
         case .presets: model.presets.count
@@ -127,6 +128,8 @@ private struct WorkspaceView: View {
                     PDFWorkbenchView()
                 case .frames:
                     FrameWorkbenchView()
+                case .docs:
+                    DocumentWorkbenchView()
                 case .presets:
                     PresetsView()
                 default:
@@ -164,7 +167,36 @@ private struct WorkspaceHeader: View {
                 .help(model.isPaused ? "允许下一个任务开始" : "当前任务结束后暂停队列")
             }
 
-            if model.selection != .presets && model.selection != .pdf && model.selection != .frames {
+            if model.selection == .history, model.hasFinishedJobs {
+                if model.selectedHistoryIDs.isEmpty {
+                    Button("全选", systemImage: "checklist") {
+                        model.selectAllHistory()
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button("清空历史", systemImage: "trash", role: .destructive) {
+                        model.clearAllHistory()
+                    }
+                    .buttonStyle(.bordered)
+                } else {
+                    Button("取消选择", systemImage: "xmark.circle") {
+                        model.deselectAllHistory()
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button("再次转换 (\(model.selectedHistoryIDs.count))", systemImage: "arrow.clockwise") {
+                        model.requeueSelectedHistory()
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button("删除所选 (\(model.selectedHistoryIDs.count))", systemImage: "trash", role: .destructive) {
+                        model.deleteSelectedHistory()
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
+            if model.selection == .convert || model.selection == .queue {
                 Button {
                     model.presentImporter()
                 } label: {
@@ -184,8 +216,9 @@ private struct WorkspaceHeader: View {
         case .convert: "选择输出格式，然后开始转换"
         case .pdf: "多图转 PDF、PDF 合并、拆分、页面重排与批量导出图片"
         case .frames: "GIF 拆帧、图片序列转动图与视频按需抽帧"
+        case .docs: "Word、Excel、PPT、PDF 与纯文本双向互转"
         case .queue: model.isPaused ? "队列已暂停，当前任务不会被强制中断" : "按顺序处理，重型任务一次运行一个"
-        case .history: "点击记录可恢复上次设置并再次转换"
+        case .history: model.hasFinishedJobs ? "共 \(model.finishedCount) 条记录 · 支持多选管理与再次转换" : "完成、失败或取消的任务会显示在这里"
         case .presets: "保存常用格式与参数组合"
         }
     }
