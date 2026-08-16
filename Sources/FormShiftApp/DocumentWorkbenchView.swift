@@ -30,6 +30,8 @@ enum DocumentToolMode: String, CaseIterable, Identifiable {
 struct DocumentWorkbenchView: View {
     @EnvironmentObject private var model: AppModel
     @State private var activeTool: DocumentToolMode = .officeToPDF
+    @State private var preloadedPDFURL: URL? = nil
+    @State private var preloadedOfficeURL: URL? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,8 +39,14 @@ struct DocumentWorkbenchView: View {
             Divider()
             Group {
                 switch activeTool {
-                case .officeToPDF: OfficeToPDFToolView()
-                case .pdfToOffice: PDFToOfficeToolView()
+                case .officeToPDF: OfficeToPDFToolView(activeTool: $activeTool, preloadedURL: $preloadedOfficeURL, onSwitchToPDF: { url in
+                    preloadedPDFURL = url
+                    activeTool = .pdfToOffice
+                })
+                case .pdfToOffice: PDFToOfficeToolView(activeTool: $activeTool, preloadedURL: $preloadedPDFURL, onSwitchToOffice: { url in
+                    preloadedOfficeURL = url
+                    activeTool = .officeToPDF
+                })
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -68,6 +76,10 @@ struct DocumentWorkbenchView: View {
 // MARK: - 1. Office to PDF Tool View
 
 struct OfficeToPDFToolView: View {
+    @Binding var activeTool: DocumentToolMode
+    @Binding var preloadedURL: URL?
+    var onSwitchToPDF: (URL) -> Void
+
     @State private var sourceURL: URL? = nil
     @State private var outputFileName = ""
     @State private var isProcessing = false
@@ -143,7 +155,7 @@ struct OfficeToPDFToolView: View {
                         .buttonStyle(.plain)
                         .dropDestination(for: URL.self) { urls, _ in
                             if let first = urls.first {
-                                loadFile(first)
+                                handleIncomingFile(first)
                                 return true
                             }
                             return false
@@ -216,6 +228,12 @@ struct OfficeToPDFToolView: View {
             }
         }
         .padding(20)
+        .onAppear {
+            if let preloaded = preloadedURL {
+                loadFile(preloaded)
+                preloadedURL = nil
+            }
+        }
     }
 
     private func chooseFile() {
@@ -225,7 +243,15 @@ struct OfficeToPDFToolView: View {
         panel.allowedContentTypes = [.data]
         panel.allowsOtherFileTypes = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        loadFile(url)
+        handleIncomingFile(url)
+    }
+
+    private func handleIncomingFile(_ url: URL) {
+        if url.pathExtension.lowercased() == "pdf" {
+            onSwitchToPDF(url)
+        } else {
+            loadFile(url)
+        }
     }
 
     private func loadFile(_ url: URL) {
@@ -233,6 +259,15 @@ struct OfficeToPDFToolView: View {
         outputFileName = url.deletingPathExtension().lastPathComponent
         resultURL = nil
         errorMessage = nil
+    }
+
+    var bodyWithOnAppear: some View {
+        self.onAppear {
+            if let preloaded = preloadedURL {
+                loadFile(preloaded)
+                preloadedURL = nil
+            }
+        }
     }
 
     private func startConvert() {
@@ -291,6 +326,10 @@ struct OfficeToPDFToolView: View {
 // MARK: - 2. PDF to Office Tool View
 
 struct PDFToOfficeToolView: View {
+    @Binding var activeTool: DocumentToolMode
+    @Binding var preloadedURL: URL?
+    var onSwitchToOffice: (URL) -> Void
+
     @State private var sourceURL: URL? = nil
     @State private var totalPages: Int = 0
     @State private var targetFormat: PDFToOfficeFormat = .docx
@@ -369,8 +408,8 @@ struct PDFToOfficeToolView: View {
                         }
                         .buttonStyle(.plain)
                         .dropDestination(for: URL.self) { urls, _ in
-                            if let first = urls.first(where: { $0.pathExtension.lowercased() == "pdf" }) {
-                                loadPDF(first)
+                            if let first = urls.first {
+                                handleIncomingFile(first)
                                 return true
                             }
                             return false
@@ -446,6 +485,12 @@ struct PDFToOfficeToolView: View {
             }
         }
         .padding(20)
+        .onAppear {
+            if let preloaded = preloadedURL {
+                loadPDF(preloaded)
+                preloadedURL = nil
+            }
+        }
     }
 
     private func choosePDF() {
@@ -454,7 +499,16 @@ struct PDFToOfficeToolView: View {
         panel.allowedContentTypes = [.pdf]
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        loadPDF(url)
+        handleIncomingFile(url)
+    }
+
+    private func handleIncomingFile(_ url: URL) {
+        let ext = url.pathExtension.lowercased()
+        if ["docx", "doc", "xlsx", "xls", "pptx", "ppt", "rtf", "txt", "csv"].contains(ext) {
+            onSwitchToOffice(url)
+        } else {
+            loadPDF(url)
+        }
     }
 
     private func loadPDF(_ url: URL) {
@@ -524,6 +578,15 @@ struct PDFToOfficeToolView: View {
     private func fileSizeString(for url: URL) -> String {
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
         return ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+    }
+
+    var bodyWithOnAppear: some View {
+        self.onAppear {
+            if let preloaded = preloadedURL {
+                loadPDF(preloaded)
+                preloadedURL = nil
+            }
+        }
     }
 }
 
