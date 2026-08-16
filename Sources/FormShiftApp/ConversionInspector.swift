@@ -88,11 +88,16 @@ struct ConversionInspector: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 8)], spacing: 8) {
                 ForEach(model.targetFormats) { format in
                     HStack(spacing: 6) {
+                        if model.targetFormat == format {
+                            Circle()
+                                .fill(FormShiftTheme.formatColor(format.rawValue))
+                                .frame(width: 6, height: 6)
+                        }
                         Button {
                             model.selectTargetFormat(format)
                         } label: {
                             Text(format.displayName)
-                                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
                                 .foregroundStyle(FormShiftTheme.formatColor(format.rawValue))
                                 .lineLimit(1)
                         }
@@ -104,7 +109,7 @@ struct ConversionInspector: View {
                                 model.removeTargetFormat(format)
                             } label: {
                                 Image(systemName: "xmark")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(.system(size: 8, weight: .bold))
                                     .foregroundStyle(.secondary)
                             }
                             .buttonStyle(.plain)
@@ -112,19 +117,19 @@ struct ConversionInspector: View {
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 7)
                     .background(
                         FormShiftTheme.formatColor(format.rawValue)
-                            .opacity(model.targetFormat == format ? 0.14 : 0.06),
+                            .opacity(model.targetFormat == format ? 0.16 : 0.05),
                         in: RoundedRectangle(cornerRadius: 9, style: .continuous)
                     )
                     .overlay {
                         RoundedRectangle(cornerRadius: 9, style: .continuous)
                             .stroke(
                                 FormShiftTheme.formatColor(format.rawValue)
-                                    .opacity(model.targetFormat == format ? 0.42 : 0.16),
-                                lineWidth: model.targetFormat == format ? 1.5 : 1
+                                    .opacity(model.targetFormat == format ? 0.55 : 0.14),
+                                lineWidth: model.targetFormat == format ? 1.2 : 1
                             )
                     }
                 }
@@ -474,14 +479,18 @@ struct ConversionInspector: View {
                     Text(model.waitingCount > 0 ? "生成 \(model.waitingCount) 个结果" : "添加文件后转换")
                     Spacer()
                     Text("⌘↩")
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.white.opacity(0.72))
+                        .font(.caption2.monospaced().weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 7)
+                .padding(.vertical, 8)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
+            .shadow(color: FormShiftTheme.cobalt.opacity(model.canStartQueue ? 0.28 : 0), radius: 8, x: 0, y: 4)
             .disabled(!model.canStartQueue)
 
             Text("文件始终保留在这台 Mac 上")

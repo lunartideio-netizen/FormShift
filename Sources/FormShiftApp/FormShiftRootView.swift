@@ -98,11 +98,25 @@ private struct FormShiftSidebar: View {
         HStack(spacing: 10) {
             ZStack {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(FormShiftTheme.graphite)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.18, green: 0.20, blue: 0.24),
+                                Color(red: 0.08, green: 0.09, blue: 0.12)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .frame(width: 34, height: 34)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                    }
+                    .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
                 Image(systemName: "arrow.left.arrow.right")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(FormShiftTheme.ceramic)
+                    .foregroundStyle(.white)
             }
 
             VStack(alignment: .leading, spacing: 1) {
@@ -343,9 +357,23 @@ private struct ConversionDropZone: View {
                 .font(.headline)
                 .foregroundStyle(FormShiftTheme.graphite)
 
-            Text("图片、视频、音频、PDF 和 GIF · 或按 ⌘O 选择")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if model.jobs.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(["图片", "视频", "音频", "PDF", "Word", "GIF"], id: \.self) { cat in
+                        Text(cat)
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Color.primary.opacity(0.05), in: Capsule())
+                    }
+                }
+                .padding(.top, 2)
+            } else {
+                Text("支持图片、音视频、PDF、文档及动图 · 或按 ⌘O 选择")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, model.jobs.isEmpty ? 48 : 22)
@@ -368,15 +396,16 @@ private struct ConversionDropZone: View {
 
     private var dropBackground: some View {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(model.isDropTargeted ? FormShiftTheme.cobalt.opacity(0.055) : Color(nsColor: .windowBackgroundColor).opacity(0.58))
+            .fill(model.isDropTargeted ? FormShiftTheme.cobalt.opacity(0.08) : Color(nsColor: .windowBackgroundColor).opacity(0.55))
     }
 
     private var dropBorder: some View {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
             .stroke(
                 model.isDropTargeted ? FormShiftTheme.cobalt : FormShiftTheme.graphite.opacity(0.16),
-                style: StrokeStyle(lineWidth: model.isDropTargeted ? 2 : 1, dash: [7, 5])
+                style: StrokeStyle(lineWidth: model.isDropTargeted ? 2 : 1.2, dash: [7, 5])
             )
+            .shadow(color: model.isDropTargeted ? FormShiftTheme.cobalt.opacity(0.3) : Color.clear, radius: 8, x: 0, y: 0)
     }
 }
 

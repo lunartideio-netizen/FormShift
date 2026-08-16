@@ -854,7 +854,13 @@ private struct FrameNoticeBanner: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(isError ? FormShiftTheme.danger.opacity(0.1) : FormShiftTheme.cobalt.opacity(0.1), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .background(isError ? FormShiftTheme.danger.opacity(0.08) : FormShiftTheme.cobalt.opacity(0.08), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .stroke(isError ? FormShiftTheme.danger.opacity(0.25) : FormShiftTheme.cobalt.opacity(0.25), lineWidth: 1)
+        }
+        .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
     }
 }
 
@@ -891,7 +897,13 @@ private struct FrameResultBanner: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(FormShiftTheme.success.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .background(FormShiftTheme.success.opacity(0.09), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .stroke(FormShiftTheme.success.opacity(0.28), lineWidth: 1)
+        }
+        .shadow(color: FormShiftTheme.success.opacity(0.12), radius: 8, x: 0, y: 3)
     }
 }
 
@@ -927,6 +939,12 @@ private struct FrameMultiResultBanner: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(FormShiftTheme.success.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .background(FormShiftTheme.success.opacity(0.09), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .stroke(FormShiftTheme.success.opacity(0.28), lineWidth: 1)
+        }
+        .shadow(color: FormShiftTheme.success.opacity(0.12), radius: 8, x: 0, y: 3)
     }
 }

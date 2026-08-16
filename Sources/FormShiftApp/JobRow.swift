@@ -13,7 +13,7 @@ struct JobRow: View {
                     Button {
                         model.toggleHistorySelection(id: job.id)
                     } label: {
-                        Image(systemName: model.selectedHistoryIDs.contains(job.id) ? "checkmark.circle.fill" : "circle")
+                        Image(systemName: model.selectedHistoryIDs.contains(job.id) ? "checkmark.circle.fill" : "circle.dashed")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(model.selectedHistoryIDs.contains(job.id) ? FormShiftTheme.cobalt : .secondary)
                     }
@@ -55,18 +55,31 @@ struct JobRow: View {
             .padding(14)
 
             if job.status == .running || job.status == .analyzing {
-                ProgressView(value: job.progress)
-                    .progressViewStyle(.linear)
-                    .tint(FormShiftTheme.cobalt)
-                    .accessibilityLabel("\(job.sourceURL.lastPathComponent) 转换进度")
-                    .accessibilityValue(Text(job.progress, format: .percent))
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(Color.primary.opacity(0.06))
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [FormShiftTheme.cobalt, FormShiftTheme.violet],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: max(0, proxy.size.width * job.progress))
+                    }
+                }
+                .frame(height: 2.5)
+                .accessibilityLabel("\(job.sourceURL.lastPathComponent) 转换进度")
+                .accessibilityValue(Text(job.progress, format: .percent))
             }
         }
         .background(
-            isSelected ? FormShiftTheme.cobalt.opacity(0.07) : Color.clear,
+            isSelected ? FormShiftTheme.cobalt.opacity(0.08) : (model.selectedHistoryIDs.contains(job.id) ? FormShiftTheme.cobalt.opacity(0.05) : Color.clear),
             in: RoundedRectangle(cornerRadius: 13, style: .continuous)
         )
-        .panelSurface(radius: 13)
+        .panelSurface(radius: 13, elevated: isSelected)
         .overlay(alignment: .leading) {
             if isSelected {
                 Capsule()
@@ -83,8 +96,21 @@ struct JobRow: View {
     private var fileGlyph: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(FormShiftTheme.formatColor(job.sourceFormat?.rawValue ?? "").opacity(0.12))
-                .frame(width: 42, height: 42)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            FormShiftTheme.formatColor(job.sourceFormat?.rawValue ?? "").opacity(0.18),
+                            FormShiftTheme.formatColor(job.sourceFormat?.rawValue ?? "").opacity(0.06)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 40, height: 40)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .stroke(FormShiftTheme.formatColor(job.sourceFormat?.rawValue ?? "").opacity(0.24), lineWidth: 1)
+                }
             Image(systemName: symbol)
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(FormShiftTheme.formatColor(job.sourceFormat?.rawValue ?? ""))
@@ -180,15 +206,16 @@ struct ConversionRail: View {
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(FormShiftTheme.machineSilver)
+                        .fill(Color.primary.opacity(0.08))
                         .frame(height: 3)
                     Capsule()
                         .fill(railColor)
                         .frame(width: proxy.size.width * railProgress, height: 3)
                     Circle()
                         .fill(railColor)
-                        .frame(width: 7, height: 7)
-                        .offset(x: max(0, (proxy.size.width - 7) * railProgress))
+                        .frame(width: 8, height: 8)
+                        .shadow(color: railColor.opacity(0.4), radius: 3, x: 0, y: 0)
+                        .offset(x: max(0, (proxy.size.width - 8) * railProgress))
                 }
                 .frame(maxHeight: .infinity)
             }
@@ -226,16 +253,16 @@ private struct FormatBadge: View {
 
     var body: some View {
         Text(label)
-            .font(.system(size: 10, weight: .bold, design: .monospaced))
+            .font(.system(size: 10, weight: .bold, design: .rounded))
             .foregroundStyle(color)
             .lineLimit(1)
             .minimumScaleFactor(0.8)
             .frame(width: 43)
-            .padding(.vertical, 5)
-            .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .padding(.vertical, 4)
+            .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .stroke(color.opacity(0.22), lineWidth: 1)
+                    .stroke(color.opacity(0.28), lineWidth: 1)
             }
     }
 }

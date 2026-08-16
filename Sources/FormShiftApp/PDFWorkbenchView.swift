@@ -1210,29 +1210,35 @@ struct PDFExtractImagesToolView: View {
 
 // MARK: - Helper UI Banners
 
-private struct NoticeBanner: View {
-    let message: String
-    var isError: Bool = false
-    let dismiss: () -> Void
+    private struct NoticeBanner: View {
+        let message: String
+        var isError: Bool = false
+        let dismiss: () -> Void
 
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: isError ? "exclamationmark.triangle.fill" : "info.circle.fill")
-                .foregroundStyle(isError ? FormShiftTheme.danger : FormShiftTheme.cobalt)
-            Text(message)
-                .font(.callout)
-            Spacer()
-            Button("关闭", systemImage: "xmark", action: dismiss)
-                .labelStyle(.iconOnly)
-                .buttonStyle(.plain)
+        var body: some View {
+            HStack(spacing: 10) {
+                Image(systemName: isError ? "exclamationmark.triangle.fill" : "info.circle.fill")
+                    .foregroundStyle(isError ? FormShiftTheme.danger : FormShiftTheme.cobalt)
+                Text(message)
+                    .font(.callout)
+                Spacer()
+                Button("关闭", systemImage: "xmark", action: dismiss)
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .background(isError ? FormShiftTheme.danger.opacity(0.08) : FormShiftTheme.cobalt.opacity(0.08), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .stroke(isError ? FormShiftTheme.danger.opacity(0.25) : FormShiftTheme.cobalt.opacity(0.25), lineWidth: 1)
+            }
+            .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(isError ? FormShiftTheme.danger.opacity(0.1) : FormShiftTheme.cobalt.opacity(0.1), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
-}
 
-private struct ResultBanner: View {
+    private struct ResultBanner: View {
     let url: URL
     let title: String
     let dismiss: () -> Void
@@ -1265,11 +1271,17 @@ private struct ResultBanner: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(FormShiftTheme.success.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .background(FormShiftTheme.success.opacity(0.09), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .stroke(FormShiftTheme.success.opacity(0.28), lineWidth: 1)
+        }
+        .shadow(color: FormShiftTheme.success.opacity(0.12), radius: 8, x: 0, y: 3)
     }
 }
 
-private struct MultiResultBanner: View {
+    private struct MultiResultBanner: View {
     let urls: [URL]
     let title: String
     let dismiss: () -> Void
@@ -1301,6 +1313,12 @@ private struct MultiResultBanner: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(FormShiftTheme.success.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .background(FormShiftTheme.success.opacity(0.09), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .stroke(FormShiftTheme.success.opacity(0.28), lineWidth: 1)
+        }
+        .shadow(color: FormShiftTheme.success.opacity(0.12), radius: 8, x: 0, y: 3)
     }
 }
