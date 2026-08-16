@@ -9,6 +9,7 @@ import UniformTypeIdentifiers
 enum WorkspaceSection: String, CaseIterable, Identifiable {
     case convert
     case pdf
+    case frames
     case queue
     case history
     case presets
@@ -19,6 +20,7 @@ enum WorkspaceSection: String, CaseIterable, Identifiable {
         switch self {
         case .convert: "转换"
         case .pdf: "PDF 工作台"
+        case .frames: "帧工作台"
         case .queue: "队列"
         case .history: "历史"
         case .presets: "预设"
@@ -29,6 +31,7 @@ enum WorkspaceSection: String, CaseIterable, Identifiable {
         switch self {
         case .convert: "arrow.triangle.2.circlepath"
         case .pdf: "doc.richtext"
+        case .frames: "film.stack"
         case .queue: "list.bullet.rectangle"
         case .history: "clock.arrow.circlepath"
         case .presets: "slider.horizontal.2.square"
@@ -118,6 +121,13 @@ final class AppModel: ObservableObject {
     @Published var frameRate = 30
     @Published var sampleRate = 48_000
     @Published var audioChannels = 2
+    @Published var videoBitrateKbps: Int? = nil
+    @Published var audioBitrateKbps: Int? = nil
+    @Published var trimEnabled: Bool = false
+    @Published var trimStartSeconds: Double = 0
+    @Published var trimEndSeconds: Double = 0
+    @Published var normalizeAudio: Bool = false
+    @Published var removeAudio: Bool = false
     @Published var colorProfile: ImageColorProfile = .automatic
     @Published var pdfImageScale = 2
     @Published var pdfPageExportScope: PDFPageExportScope = .allPages
@@ -152,6 +162,7 @@ final class AppModel: ObservableObject {
         switch selection {
         case .convert: jobs.filter { $0.status == .waiting || $0.status == .analyzing || $0.status == .running }
         case .pdf: []
+        case .frames: []
         case .queue: jobs.filter {
             $0.status == .waiting || $0.status == .analyzing || $0.status == .running
                 || (submittedJobIDs.contains($0.id) && $0.status != .succeeded)
@@ -610,6 +621,55 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func exportAllPresets(to url: URL) throws {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(presets)
+        try data.write(to: url, options: .atomic)
+        importNotice = "已成功导出 \(presets.count) 个预设。"
+    }
+
+    func exportPreset(id: UUID, to url: URL) throws {
+        guard let preset = presets.first(where: { $0.id == id }) else { return }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(preset)
+        try data.write(to: url, options: .atomic)
+        importNotice = "已成功导出预设“\(preset.name)”。"
+    }
+
+    func importPresets(from url: URL) throws -> Int {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let data = try Data(contentsOf: url)
+        let decoder = JSONDecoder()
+        let importedList: [Preset]
+        if let list = try? decoder.decode([Preset].self, from: data) {
+            importedList = list
+        } else if let single = try? decoder.decode(Preset.self, from: data) {
+            importedList = [single]
+        } else {
+            throw ConversionError.invalidOptions("无法识别的预设文件格式")
+        }
+        guard !importedList.isEmpty else { return 0 }
+        var count = 0
+        for p in importedList {
+            presets.removeAll { $0.id == p.id || $0.name.localizedCaseInsensitiveCompare(p.name) == .orderedSame }
+            presets.append(p)
+            count += 1
+            if let persistence {
+                Task { try? await persistence.upsert(preset: p) }
+            }
+        }
+        presets.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        importNotice = "成功导入 \(count) 个预设。"
+        return count
+    }
+
     func updateJob(id: UUID, mutation: (inout UIJobItem) -> Void) {
         guard let index = jobs.firstIndex(where: { $0.id == id }) else { return }
         mutation(&jobs[index])
@@ -727,6 +787,13 @@ final class AppModel: ObservableObject {
         if let frameRate = options.frameRate { self.frameRate = max(1, Int(frameRate.rounded())) }
         if let sampleRate = options.sampleRate { self.sampleRate = sampleRate }
         if let audioChannels = options.audioChannels { self.audioChannels = audioChannels }
+        videoBitrateKbps = options.videoBitrateKbps
+        audioBitrateKbps = options.audioBitrateKbps
+        trimEnabled = (options.trimStartSeconds != nil || options.trimEndSeconds != nil)
+        trimStartSeconds = options.trimStartSeconds ?? 0
+        trimEndSeconds = options.trimEndSeconds ?? 0
+        normalizeAudio = options.normalizeAudio
+        removeAudio = options.removeAudio
     }
 
     private func currentOptions(for outputFormat: FormatID) -> ConversionOptions {
@@ -752,11 +819,17 @@ final class AppModel: ObservableObject {
             pdfCustomPageRange: pdfCustomPageRange.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : pdfCustomPageRange,
             videoCodec: codec,
             preferHardwareEncoding: hardwareEncoding,
+            videoBitrateKbps: videoBitrateKbps,
+            audioBitrateKbps: audioBitrateKbps,
             frameRate: outputFormat.category == .video || outputFormat.category == .animatedImage
                 ? Double(frameRate)
                 : nil,
             sampleRate: outputFormat.category == .audio ? sampleRate : nil,
             audioChannels: outputFormat.category == .audio ? audioChannels : nil,
+            trimStartSeconds: trimEnabled && trimStartSeconds > 0 ? trimStartSeconds : nil,
+            trimEndSeconds: trimEnabled && trimEndSeconds > trimStartSeconds ? trimEndSeconds : nil,
+            normalizeAudio: normalizeAudio,
+            removeAudio: removeAudio,
             metadataPolicy: removeMetadata ? .remove : .preserve
         )
     }

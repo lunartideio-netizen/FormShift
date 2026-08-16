@@ -33,6 +33,8 @@ struct FormShiftSmoke {
         try await testPDFScale(root: root)
         try await testPersistence(source: source, root: root)
         try await testPDFWorkbenchFeatures(root: root)
+        try await testFrameWorkbenchFeatures(root: root)
+        try await testPresetImportExport(root: root)
         print("FormShift smoke tests passed")
     }
 
@@ -264,6 +266,60 @@ struct FormShiftSmoke {
         try require(FileManager.default.fileExists(atPath: queueExportDest.path), "Queue export destination missing")
         let page2File = testDir.appendingPathComponent("queue_export_02.png")
         try require(FileManager.default.fileExists(atPath: page2File.path), "Queue export page 2 file missing")
+    }
+
+    private static func testFrameWorkbenchFeatures(root: URL) async throws {
+        let testDir = root.appendingPathComponent("frame-workbench", isDirectory: true)
+        try FileManager.default.createDirectory(at: testDir, withIntermediateDirectories: true)
+
+        // 1. Image Sequence to GIF Test
+        var frames: [URL] = []
+        for i in 1...3 {
+            let fURL = testDir.appendingPathComponent("seq_\(i).png")
+            try makeBorderedImage(at: fURL)
+            frames.append(fURL)
+        }
+        let outputGIF = testDir.appendingPathComponent("created.gif")
+        let gifResult = try FrameWorkbenchEngine.createGIF(
+            imageURLs: frames,
+            destinationURL: outputGIF,
+            options: FrameSequenceOptions(frameRate: 10, loopCount: 0)
+        )
+        guard let gifSource = CGImageSourceCreateWithURL(gifResult as CFURL, nil) else {
+            throw SmokeFailure.failed("Cannot open created GIF")
+        }
+        let frameCount = CGImageSourceGetCount(gifSource)
+        try require(frameCount == 3, "Created GIF frame count was \(frameCount), expected 3")
+
+        // 2. GIF Split Test
+        let splitDir = testDir.appendingPathComponent("gif_frames", isDirectory: true)
+        let extractedFrames = try FrameWorkbenchEngine.splitGIF(
+            gifURL: outputGIF,
+            destinationDirectory: splitDir,
+            format: .png
+        )
+        try require(extractedFrames.count == 3, "Extracted GIF frames count was \(extractedFrames.count), expected 3")
+        for f in extractedFrames {
+            let sz = try imageSize(at: f)
+            try require(sz.width > 0 && sz.height > 0, "Extracted frame \(f.lastPathComponent) had invalid size")
+        }
+    }
+
+    private static func testPresetImportExport(root: URL) async throws {
+        let presetFile = root.appendingPathComponent("test.formshiftpreset")
+        let originalPresets = [
+            Preset(id: UUID(), name: "测试高清", outputFormat: .jpeg, options: ConversionOptions(quality: 0.95, width: 3840)),
+            Preset(id: UUID(), name: "测试缩略图", outputFormat: .png, options: ConversionOptions(quality: 0.8, width: 400))
+        ]
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(originalPresets)
+        try data.write(to: presetFile)
+
+        let decodedData = try Data(contentsOf: presetFile)
+        let decoded = try JSONDecoder().decode([Preset].self, from: decodedData)
+        try require(decoded.count == 2, "Decoded presets count was \(decoded.count), expected 2")
+        try require(decoded[0].name == "测试高清", "Decoded preset name mismatch")
     }
 
     private static func makeBorderedImage(at url: URL) throws {

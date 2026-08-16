@@ -104,6 +104,7 @@ private struct FormShiftSidebar: View {
         switch section {
         case .convert: model.waitingCount
         case .pdf: nil
+        case .frames: nil
         case .queue: model.waitingCount + model.runningCount
         case .history: model.finishedCount
         case .presets: model.presets.count
@@ -124,6 +125,8 @@ private struct WorkspaceView: View {
                 switch model.selection {
                 case .pdf:
                     PDFWorkbenchView()
+                case .frames:
+                    FrameWorkbenchView()
                 case .presets:
                     PresetsView()
                 default:
@@ -161,7 +164,7 @@ private struct WorkspaceHeader: View {
                 .help(model.isPaused ? "允许下一个任务开始" : "当前任务结束后暂停队列")
             }
 
-            if model.selection != .presets && model.selection != .pdf {
+            if model.selection != .presets && model.selection != .pdf && model.selection != .frames {
                 Button {
                     model.presentImporter()
                 } label: {
@@ -180,6 +183,7 @@ private struct WorkspaceHeader: View {
         switch model.selection {
         case .convert: "选择输出格式，然后开始转换"
         case .pdf: "多图转 PDF、PDF 合并、拆分、页面重排与批量导出图片"
+        case .frames: "GIF 拆帧、图片序列转动图与视频按需抽帧"
         case .queue: model.isPaused ? "队列已暂停，当前任务不会被强制中断" : "按顺序处理，重型任务一次运行一个"
         case .history: "点击记录可恢复上次设置并再次转换"
         case .presets: "保存常用格式与参数组合"
@@ -360,6 +364,19 @@ private struct PresetsView: View {
                 Button("保存当前设置", systemImage: "plus", action: savePreset)
                     .buttonStyle(.borderedProminent)
                     .disabled(presetName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Spacer()
+
+                Button("导入预设", systemImage: "square.and.arrow.down") {
+                    importPresets()
+                }
+                .buttonStyle(.bordered)
+
+                Button("导出全部", systemImage: "square.and.arrow.up") {
+                    exportAllPresets()
+                }
+                .buttonStyle(.bordered)
+                .disabled(model.presets.isEmpty)
             }
             .padding(14)
             .panelSurface(radius: 12)
@@ -403,6 +420,10 @@ private struct PresetsView: View {
                                 .buttonStyle(.borderedProminent)
 
                                 Menu {
+                                    Button("导出此预设", systemImage: "square.and.arrow.up") {
+                                        exportSinglePreset(preset)
+                                    }
+                                    Divider()
                                     Button("删除预设", systemImage: "trash", role: .destructive) {
                                         model.deletePreset(id: preset.id)
                                     }
@@ -433,6 +454,44 @@ private struct PresetsView: View {
         guard !name.isEmpty else { return }
         model.savePreset(named: name)
         presetName = ""
+    }
+
+    private func importPresets() {
+        let panel = NSOpenPanel()
+        panel.title = "选择预设文件 (.json / .formshiftpreset)"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            _ = try model.importPresets(from: url)
+        } catch {
+            model.importNotice = "导入预设失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func exportAllPresets() {
+        let panel = NSSavePanel()
+        panel.title = "导出所有预设"
+        panel.nameFieldStringValue = "FormShiftPresets.formshiftpreset"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try model.exportAllPresets(to: url)
+        } catch {
+            model.importNotice = "导出预设失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func exportSinglePreset(_ preset: Preset) {
+        let panel = NSSavePanel()
+        panel.title = "导出预设 “\(preset.name)”"
+        panel.nameFieldStringValue = "\(preset.name).formshiftpreset"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try model.exportPreset(id: preset.id, to: url)
+        } catch {
+            model.importNotice = "导出预设失败：\(error.localizedDescription)"
+        }
     }
 
     private func presetSummary(_ preset: Preset) -> String {

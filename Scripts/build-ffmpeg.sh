@@ -104,6 +104,16 @@ CONFIGURE_ARGS=(
     "--enable-videotoolbox"
 )
 
+if [[ "${ENABLE_LIBMP3LAME:-0}" == "1" ]]; then
+    CONFIGURE_ARGS+=("--enable-libmp3lame")
+fi
+if [[ "${ENABLE_LIBVPX:-0}" == "1" ]]; then
+    CONFIGURE_ARGS+=("--enable-libvpx")
+fi
+if [[ "${ENABLE_LIBSVTAV1:-0}" == "1" ]]; then
+    CONFIGURE_ARGS+=("--enable-libsvtav1")
+fi
+
 pushd "$SOURCE_DIR" >/dev/null
 ./configure "${CONFIGURE_ARGS[@]}"
 make -j "$(sysctl -n hw.logicalcpu)"

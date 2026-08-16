@@ -248,6 +248,19 @@ struct ConversionInspector: View {
                     .labelsHidden()
                 }
 
+                if model.targetFormat.category == .video {
+                    InspectorControlRow(label: "视频码率") {
+                        Picker("视频码率", selection: $model.videoBitrateKbps) {
+                            Text("自动").tag(nil as Int?)
+                            Text("2,500 Kbps (紧凑)").tag(2500 as Int?)
+                            Text("4,000 Kbps (标准)").tag(4000 as Int?)
+                            Text("8,000 Kbps (高清)").tag(8000 as Int?)
+                            Text("16,000 Kbps (超清)").tag(16000 as Int?)
+                        }
+                        .labelsHidden()
+                    }
+                }
+
                 InspectorControlRow(label: "帧率") {
                     Picker("帧率", selection: $model.frameRate) {
                         Text("24 fps").tag(24)
@@ -261,6 +274,11 @@ struct ConversionInspector: View {
                 InspectorControlRow(label: "") {
                     Toggle("优先使用硬件编码", isOn: $model.hardwareEncoding)
                         .toggleStyle(.checkbox)
+                }
+
+                if model.targetFormat.category == .video {
+                    mediaTrimmingSection
+                    audioSettingsInVideo
                 }
 
             case .audio:
@@ -278,6 +296,22 @@ struct ConversionInspector: View {
                         Text("立体声").tag(2)
                     }
                     .labelsHidden()
+                }
+                InspectorControlRow(label: "音频码率") {
+                    Picker("音频码率", selection: $model.audioBitrateKbps) {
+                        Text("自动").tag(nil as Int?)
+                        Text("96 Kbps").tag(96 as Int?)
+                        Text("128 Kbps (标准)").tag(128 as Int?)
+                        Text("192 Kbps (高质)").tag(192 as Int?)
+                        Text("256 Kbps (无损级)").tag(256 as Int?)
+                        Text("320 Kbps (极限)").tag(320 as Int?)
+                    }
+                    .labelsHidden()
+                }
+                mediaTrimmingSection
+                InspectorControlRow(label: "") {
+                    Toggle("响度标准化 (EBU R128)", isOn: $model.normalizeAudio)
+                        .toggleStyle(.checkbox)
                 }
 
             case .image:
@@ -318,9 +352,55 @@ struct ConversionInspector: View {
 
     private var advancedSubtitle: String {
         switch model.targetFormat.category {
-        case .video, .animatedImage: "编码器、帧率与硬件加速"
-        case .audio: "采样率与声道"
+        case .video, .animatedImage: "编码器、码率、裁切与硬件加速"
+        case .audio: "采样率、声道、码率与响度"
         case .image, .pdf: "旋转、裁剪与色彩"
+        }
+    }
+
+    @ViewBuilder
+    private var mediaTrimmingSection: some View {
+        Toggle("精确起止时间裁切", isOn: $model.trimEnabled)
+            .toggleStyle(.checkbox)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        if model.trimEnabled {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("开始时间 (秒)").font(.caption2).foregroundStyle(.secondary)
+                    TextField("0.0", value: $model.trimStartSeconds, format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.body.monospacedDigit())
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("结束时间 (秒)").font(.caption2).foregroundStyle(.secondary)
+                    TextField("0.0", value: $model.trimEndSeconds, format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.body.monospacedDigit())
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var audioSettingsInVideo: some View {
+        Toggle("移除音轨 (静音)", isOn: $model.removeAudio)
+            .toggleStyle(.checkbox)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        if !model.removeAudio {
+            InspectorControlRow(label: "音频码率") {
+                Picker("音频码率", selection: $model.audioBitrateKbps) {
+                    Text("自动").tag(nil as Int?)
+                    Text("128 Kbps (标准)").tag(128 as Int?)
+                    Text("192 Kbps (高质)").tag(192 as Int?)
+                    Text("256 Kbps (无损级)").tag(256 as Int?)
+                    Text("320 Kbps (极限)").tag(320 as Int?)
+                }
+                .labelsHidden()
+            }
+            InspectorControlRow(label: "") {
+                Toggle("响度标准化 (EBU R128)", isOn: $model.normalizeAudio)
+                    .toggleStyle(.checkbox)
+            }
         }
     }
 
