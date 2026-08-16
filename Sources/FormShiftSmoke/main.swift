@@ -25,19 +25,55 @@ struct FormShiftSmoke {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
 
+        print("===================================================")
+        print("       FORMSHIFT COMPREHENSIVE SMOKE TEST SUITE    ")
+        print("===================================================")
+
         let source = root.appendingPathComponent("bordered.png")
         try makeBorderedImage(at: source)
+        print("[1/9] Testing Smart Border Trim...")
         try await testSmartTrim(source: source, root: root)
+        print("  -> PASS: Smart Border Trim verified")
+
+        print("[2/9] Testing Image Fill & Display P3 Profile...")
         try await testFill(source: source, root: root)
+        print("  -> PASS: 300x300 Fill & Display P3 verified")
+
+        print("[3/9] Testing Multi-Output Queue (PNG -> JPG + PDF)...")
         try await testMultipleOutputs(source: source, root: root)
+        print("  -> PASS: Multi-output batch queue verified")
+
+        print("[4/9] Testing PDF Render Scaling (1x vs 3x)...")
         try await testPDFScale(root: root)
+        print("  -> PASS: PDF 1x and 3x render scale verified")
+
+        print("[5/9] Testing History & Bookmark Persistence...")
         try await testPersistence(source: source, root: root)
+        print("  -> PASS: History upsert and interruption recovery verified")
+
+        print("[6/9] Testing PDF Workbench (Merge, Split, Rotate, Image Export)...")
         try await testPDFWorkbenchFeatures(root: root)
+        print("  -> PASS: PDF Workbench full capabilities verified")
+
+        print("[7/9] Testing Frame Workbench (GIF Sequence & Split)...")
         try await testFrameWorkbenchFeatures(root: root)
+        print("  -> PASS: Frame Workbench GIF generation & split verified")
+
+        print("[8/9] Testing Presets Import/Export...")
         try await testPresetImportExport(root: root)
+        print("  -> PASS: Presets .formshiftpreset serialization verified")
+
+        print("[9/9] Testing Document Workbench (Office <-> PDF Dual Path)...")
         try await testDocumentWorkbenchFeatures(root: root)
+        print("  -> PASS: Text -> PDF and PDF -> DOCX / XLSX / CSV / TXT verified")
+
+        print("[10/10] Testing Naming Patterns & Target Size Compression...")
         try testNamingPatternAndTargetSize(root: root)
-        print("FormShift smoke tests passed")
+        print("  -> PASS: Pattern substitution & Target size limit verified")
+
+        print("===================================================")
+        print("   ALL 10 TEST SUITES PASSED CLEANLY (100% PASS)   ")
+        print("===================================================")
     }
 
     private static func testSmartTrim(source: URL, root: URL) async throws {
