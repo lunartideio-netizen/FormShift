@@ -63,16 +63,17 @@ struct FormShiftSmoke {
         try await testPresetImportExport(root: root)
         print("  -> PASS: Presets .formshiftpreset serialization verified")
 
-        print("[9/9] Testing Document Workbench (Office <-> PDF Dual Path)...")
-        try await testDocumentWorkbenchFeatures(root: root)
-        print("  -> PASS: Text -> PDF and PDF -> DOCX / XLSX / CSV / TXT verified")
+       print("[9/9] Testing Document Workbench (Office <-> PDF Dual Path)...")
+       try await testDocumentWorkbenchFeatures(root: root)
+       print("  -> PASS: Text -> PDF and PDF -> DOCX / XLSX / CSV / TXT verified")
 
         print("[10/10] Testing Naming Patterns & Target Size Compression...")
         try testNamingPatternAndTargetSize(root: root)
+        try await testLiveVideoTargetCompression(root: root)
         print("  -> PASS: Pattern substitution & Target size limit verified")
 
         print("===================================================")
-        print("   ALL 10 TEST SUITES PASSED CLEANLY (100% PASS)   ")
+       print("   ALL 10 TEST SUITES PASSED CLEANLY (100% PASS)   ")
         print("===================================================")
     }
 
@@ -422,7 +423,60 @@ struct FormShiftSmoke {
         try require(decoded.fileNamePattern == "{name}_20mb", "File name pattern mismatch")
     }
 
-    private static func makeBorderedImage(at url: URL) throws {
+    private static func testLiveVideoTargetCompression(root: URL) async throws {
+        let testDir = root.appendingPathComponent("video-compression", isDirectory: true)
+        try FileManager.default.createDirectory(at: testDir, withIntermediateDirectories: true)
+        let sourceVideo = testDir.appendingPathComponent("source_6s.mp4")
+
+        let fileManager = FileManager.default
+        let paths = ProcessInfo.processInfo.environment["PATH"]?.split(separator: ":").map(String.init) ?? []
+        let ffmpegURL = paths.lazy.map { URL(fileURLWithPath: $0).appendingPathComponent("ffmpeg") }
+            .first { fileManager.isExecutableFile(atPath: $0.path) }
+            ?? URL(fileURLWithPath: "/opt/homebrew/bin/ffmpeg")
+
+        guard fileManager.isExecutableFile(atPath: ffmpegURL.path) else {
+            return
+        }
+
+        let process = Process()
+        process.executableURL = ffmpegURL
+        process.arguments = [
+            "-y", "-hide_banner", "-loglevel", "error",
+            "-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30",
+            "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=44100",
+            "-t", "6",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            "-c:a", "aac",
+            sourceVideo.path
+        ]
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0, fileManager.fileExists(atPath: sourceVideo.path) else {
+            return
+        }
+
+        let engine = FFmpegEngine()
+        let descriptor = try await engine.probe(url: sourceVideo)
+        try require(descriptor.durationSeconds != nil && descriptor.durationSeconds! >= 5.8, "Probe duration was invalid")
+
+        let compressedOutput = testDir.appendingPathComponent("compressed_target_0.8mb.mp4")
+        let options = ConversionOptions(targetFileSizeMB: 0.8)
+        let plan = try engine.makePlan(
+            jobID: UUID(),
+            source: descriptor,
+            output: .mp4,
+            destination: compressedOutput,
+            options: options
+        )
+        _ = try await engine.run(plan: plan) { _ in }
+        try require(fileManager.fileExists(atPath: compressedOutput.path), "Compressed video output does not exist")
+        let outAttributes = try fileManager.attributesOfItem(atPath: compressedOutput.path)
+        let outByteSize = (outAttributes[.size] as? NSNumber)?.int64Value ?? 0
+        let maxAllowedBytes: Int64 = Int64(0.88 * 1024 * 1024)
+        try require(outByteSize > 50_000 && outByteSize <= maxAllowedBytes, "Output size \(outByteSize) bytes was outside target budget limit of \(maxAllowedBytes) bytes")
+    }
+
+   private static func makeBorderedImage(at url: URL) throws {
         let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
         guard let context = CGContext(
             data: nil,
