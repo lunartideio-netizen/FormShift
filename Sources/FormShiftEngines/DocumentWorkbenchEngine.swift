@@ -3,6 +3,7 @@ import CoreGraphics
 import Foundation
 import PDFKit
 import UniformTypeIdentifiers
+import Vision
 import FormShiftCore
 
 public enum DocumentWorkbenchEngine {
@@ -123,8 +124,7 @@ public enum DocumentWorkbenchEngine {
 
         for (idx, pageNum) in targetPages.enumerated() {
             guard let page = doc.page(at: pageNum - 1) else { continue }
-            let pageText = page.string ?? ""
-            let lines = pageText.components(separatedBy: .newlines)
+            let lines = extractPageLines(from: page)
 
             if targetPages.count > 1 {
                 paragraphsXML += "<w:p><w:r><w:rPr><w:b/><w:color w:val=\"005FB8\"/></w:rPr><w:t>--- 第 \(pageNum) 页 ---</w:t></w:r></w:p>"
@@ -137,7 +137,7 @@ public enum DocumentWorkbenchEngine {
                     continue
                 }
                 let escaped = xmlEscape(line)
-                paragraphsXML += "<w:p><w:r><w:t xml:space=\"preserve\">\(escaped)</w:t></w:r></w:p>"
+                paragraphsXML += "<w:p><w:pPr><w:spacing w:after=\"120\" w:line=\"276\" w:lineRule=\"auto\"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii=\"PingFang SC\" w:eastAsia=\"PingFang SC\" w:hAnsi=\"PingFang SC\"/><w:sz w:val=\"22\"/><w:szCs w:val=\"22\"/></w:rPr><w:t xml:space=\"preserve\">\(escaped)</w:t></w:r></w:p>"
             }
             progress?(Double(idx + 1) / total * 0.7)
         }
@@ -145,7 +145,7 @@ public enum DocumentWorkbenchEngine {
         let fileManager = FileManager.default
         let tempDir = fileManager.temporaryDirectory.appendingPathComponent("docx_build_\(UUID().uuidString)")
         try fileManager.createDirectory(at: tempDir.appendingPathComponent("_rels"), withIntermediateDirectories: true)
-        try fileManager.createDirectory(at: tempDir.appendingPathComponent("word"), withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: tempDir.appendingPathComponent("word/_rels"), withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: tempDir) }
 
         let contentTypes = """
@@ -154,6 +154,7 @@ public enum DocumentWorkbenchEngine {
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
 </Types>
 """
 
@@ -164,9 +165,32 @@ public enum DocumentWorkbenchEngine {
 </Relationships>
 """
 
+        let docRels = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>
+"""
+
+        let stylesXML = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr>
+        <w:rFonts w:ascii="PingFang SC" w:eastAsia="PingFang SC" w:hAnsi="PingFang SC"/>
+        <w:sz w:val="22"/>
+        <w:szCs w:val="22"/>
+      </w:rPr>
+    </w:rPrDefault>
+  </w:docDefaults>
+</w:styles>
+"""
+
         let documentXML = """
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <w:body>
     \(paragraphsXML)
     <w:sectPr>
@@ -179,6 +203,8 @@ public enum DocumentWorkbenchEngine {
 
         try contentTypes.write(to: tempDir.appendingPathComponent("[Content_Types].xml"), atomically: true, encoding: .utf8)
         try rels.write(to: tempDir.appendingPathComponent("_rels/.rels"), atomically: true, encoding: .utf8)
+        try docRels.write(to: tempDir.appendingPathComponent("word/_rels/document.xml.rels"), atomically: true, encoding: .utf8)
+        try stylesXML.write(to: tempDir.appendingPathComponent("word/styles.xml"), atomically: true, encoding: .utf8)
         try documentXML.write(to: tempDir.appendingPathComponent("word/document.xml"), atomically: true, encoding: .utf8)
 
         let tempDocx = fileManager.temporaryDirectory.appendingPathComponent("out_\(UUID().uuidString).docx")
@@ -219,8 +245,7 @@ public enum DocumentWorkbenchEngine {
         var tableRows: [[String]] = []
         for p in 0..<doc.pageCount {
             guard let page = doc.page(at: p) else { continue }
-            let text = page.string ?? ""
-            let lines = text.components(separatedBy: .newlines)
+            let lines = extractPageLines(from: page)
             for line in lines {
                 let trimmed = line.trimmingCharacters(in: .whitespaces)
                 guard !trimmed.isEmpty else { continue }
@@ -363,16 +388,64 @@ public enum DocumentWorkbenchEngine {
         }
         var fullText = ""
         for p in 0..<doc.pageCount {
-            if let page = doc.page(at: p), let s = page.string {
-                if doc.pageCount > 1 {
-                    fullText += "\n--- 第 \(p + 1) 页 ---\n"
-                }
-                fullText += s + "\n"
+            guard let page = doc.page(at: p) else { continue }
+            let lines = extractPageLines(from: page)
+            if doc.pageCount > 1 {
+                fullText += "\n--- 第 \(p + 1) 页 ---\n"
             }
+            fullText += lines.joined(separator: "\n") + "\n"
         }
         try fullText.write(to: destinationURL, atomically: true, encoding: .utf8)
         progress?(1.0)
         return destinationURL
+    }
+
+    private static func extractPageLines(from page: PDFPage) -> [String] {
+        let text = (page.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.count >= 10 {
+            return text.components(separatedBy: .newlines)
+        }
+        // Fallback to Apple Vision OCR on rendered page image
+        let pageBox = page.bounds(for: .mediaBox)
+        let scale: CGFloat = 2.0
+        let targetSize = CGSize(width: max(1, pageBox.width * scale), height: max(1, pageBox.height * scale))
+        let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
+        guard let context = CGContext(
+            data: nil,
+            width: Int(targetSize.width),
+            height: Int(targetSize.height),
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return text.isEmpty ? [] : text.components(separatedBy: .newlines)
+        }
+        context.setFillColor(CGColor(gray: 1, alpha: 1))
+        context.fill(CGRect(origin: .zero, size: targetSize))
+        page.draw(with: .mediaBox, to: context)
+        guard let cgImage = context.makeImage() else {
+            return text.isEmpty ? [] : text.components(separatedBy: .newlines)
+        }
+
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["zh-Hans", "zh-Hant", "en-US"]
+        request.usesLanguageCorrection = true
+
+        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+        try? handler.perform([request])
+        guard let observations = request.results, !observations.isEmpty else {
+            return text.isEmpty ? [] : text.components(separatedBy: .newlines)
+        }
+
+        let sorted = observations.sorted { a, b in
+            let yA = a.boundingBox.origin.y + a.boundingBox.size.height
+            let yB = b.boundingBox.origin.y + b.boundingBox.size.height
+            if abs(yA - yB) > 0.015 { return yA > yB }
+            return a.boundingBox.origin.x < b.boundingBox.origin.x
+        }
+        return sorted.compactMap { $0.topCandidates(1).first?.string }
     }
 
     private static func renderAttributedStringToPDF(_ attr: NSAttributedString) throws -> Data {
