@@ -22,7 +22,7 @@ enum DocumentToolMode: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .officeToPDF: "arrow.forward.doc.fill"
-        case .pdfToOffice: "arrow.backward.doc.fill"
+        case .pdfToOffice: "doc.text.fill"
         }
     }
 }
@@ -347,7 +347,7 @@ struct PDFToOfficeToolView: View {
                             choosePDF()
                         } label: {
                             VStack(spacing: 12) {
-                                Image(systemName: "arrow.backward.doc.fill")
+                                Image(systemName: "doc.text.viewfinder")
                                     .font(.system(size: 38))
                                     .foregroundStyle(FormShiftTheme.cobalt)
                                 Text("点击或拖放 PDF 文件到这里")
@@ -432,7 +432,7 @@ struct PDFToOfficeToolView: View {
                         startConvert()
                     } label: {
                         HStack {
-                            Image(systemName: "arrow.backward.doc.fill")
+                            Image(systemName: "doc.text.viewfinder")
                             Text(isProcessing ? "正在逆向导出..." : "开始逆向导出")
                         }
                         .frame(maxWidth: .infinity)

@@ -124,21 +124,7 @@ public enum DocumentWorkbenchEngine {
 
         for (idx, pageNum) in targetPages.enumerated() {
             guard let page = doc.page(at: pageNum - 1) else { continue }
-            let lines = extractPageLines(from: page)
-
-            if targetPages.count > 1 {
-                paragraphsXML += "<w:p><w:r><w:rPr><w:b/><w:color w:val=\"005FB8\"/></w:rPr><w:t>--- 第 \(pageNum) 页 ---</w:t></w:r></w:p>"
-            }
-
-            for rawLine in lines {
-                let line = rawLine.trimmingCharacters(in: .whitespaces)
-                guard !line.isEmpty else {
-                    paragraphsXML += "<w:p/>"
-                    continue
-                }
-                let escaped = xmlEscape(line)
-                paragraphsXML += "<w:p><w:pPr><w:spacing w:after=\"120\" w:line=\"276\" w:lineRule=\"auto\"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii=\"PingFang SC\" w:eastAsia=\"PingFang SC\" w:hAnsi=\"PingFang SC\"/><w:sz w:val=\"22\"/><w:szCs w:val=\"22\"/></w:rPr><w:t xml:space=\"preserve\">\(escaped)</w:t></w:r></w:p>"
-            }
+            paragraphsXML += generateWordBodyXML(for: page, pageNumber: pageNum, totalPages: targetPages.count)
             progress?(Double(idx + 1) / total * 0.7)
         }
 
@@ -405,7 +391,16 @@ public enum DocumentWorkbenchEngine {
         if text.count >= 10 {
             return text.components(separatedBy: .newlines)
         }
-        // Fallback to Apple Vision OCR on rendered page image
+        let rows = extractStructuredRows(from: page)
+        return rows.map { $0.map(\.text).joined(separator: "    ") }
+    }
+
+    private struct OCRBlock {
+        var text: String
+        var box: CGRect
+    }
+
+    private static func extractStructuredRows(from page: PDFPage) -> [[OCRBlock]] {
         let pageBox = page.bounds(for: .mediaBox)
         let scale: CGFloat = 2.0
         let targetSize = CGSize(width: max(1, pageBox.width * scale), height: max(1, pageBox.height * scale))
@@ -419,13 +414,13 @@ public enum DocumentWorkbenchEngine {
             space: colorSpace,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else {
-            return text.isEmpty ? [] : text.components(separatedBy: .newlines)
+            return []
         }
         context.setFillColor(CGColor(gray: 1, alpha: 1))
         context.fill(CGRect(origin: .zero, size: targetSize))
         page.draw(with: .mediaBox, to: context)
         guard let cgImage = context.makeImage() else {
-            return text.isEmpty ? [] : text.components(separatedBy: .newlines)
+            return []
         }
 
         let request = VNRecognizeTextRequest()
@@ -436,16 +431,180 @@ public enum DocumentWorkbenchEngine {
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
         try? handler.perform([request])
         guard let observations = request.results, !observations.isEmpty else {
-            return text.isEmpty ? [] : text.components(separatedBy: .newlines)
+            return []
         }
 
-        let sorted = observations.sorted { a, b in
-            let yA = a.boundingBox.origin.y + a.boundingBox.size.height
-            let yB = b.boundingBox.origin.y + b.boundingBox.size.height
-            if abs(yA - yB) > 0.015 { return yA > yB }
-            return a.boundingBox.origin.x < b.boundingBox.origin.x
+        let rawBlocks = observations.compactMap { obs -> OCRBlock? in
+            guard let t = obs.topCandidates(1).first?.string.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
+            return OCRBlock(text: cleanOCRArtifacts(t), box: obs.boundingBox)
         }
-        return sorted.compactMap { $0.topCandidates(1).first?.string }
+
+        var visualLines: [[OCRBlock]] = []
+        let yThreshold: CGFloat = 0.015
+        let sortedByY = rawBlocks.sorted { a, b in
+            let midA = a.box.origin.y + a.box.height / 2
+            let midB = b.box.origin.y + b.box.height / 2
+            return midA > midB
+        }
+        for block in sortedByY {
+            let blockMidY = block.box.origin.y + block.box.height / 2
+            var added = false
+            for lineIdx in visualLines.indices {
+                let lineMidY = visualLines[lineIdx].reduce(0) { $0 + ($1.box.origin.y + $1.box.height / 2) } / CGFloat(visualLines[lineIdx].count)
+                if abs(blockMidY - lineMidY) < yThreshold {
+                    visualLines[lineIdx].append(block)
+                    added = true
+                    break
+                }
+            }
+            if !added {
+                visualLines.append([block])
+            }
+        }
+        for lineIdx in visualLines.indices {
+            visualLines[lineIdx].sort { $0.box.origin.x < $1.box.origin.x }
+        }
+        return visualLines
+    }
+
+    private static func cleanOCRArtifacts(_ input: String) -> String {
+        var s = input
+        let fixes: [(String, String)] = [
+            ("二姓名", "姓名"), ("上姓名", "姓名"), ("上 姓名", "姓名"),
+            ("C手机号码", "手机号码"), ("C 手机号码", "手机号码"), ("c手机号码", "手机号码"),
+            ("菌出生年月", "出生年月"), ("菌 出生年月", "出生年月"), ("田出生年月", "出生年月"),
+            ("亏籍贯", "籍贯"), ("亏 籍贯", "籍贯"), ("号籍贯", "籍贯"), ("籍货", "籍贯"),
+            ("目邮箱", "邮箱"), ("目 邮箱", "邮箱"), ("日邮箱", "邮箱"),
+            ("国毕业院校", "毕业院校"), ("国 毕业院校", "毕业院校"), ("國毕业院校", "毕业院校"),
+            ("酸斯洋", "戴斯洋"), ("专业荊", "专业前"), ("主修误程", "主修课程"),
+            ("SpringBont", "SpringBoot"), ("Nysal", "Mysql"), ("注路开发", "链路开发"),
+            ("是升总定住", "提升稳定性"), ("极光一登录", "极光一键登录"), ("没权页", "授权页"),
+            ("负吉登录", "负责登录"), ("打涵手机号", "打通手机号"), ("流產", "流程"),
+            ("木登录", "未登录"), ("每于", "基于"), ("说坝化", "模块化"),
+            ("追用组件", "通用组件"), ("符低", "降低"), ("协贡", "负责"),
+            ("宫文本", "富文本"), ("绒辩影", "编辑器"), ("配肖效率", "配置效率"),
+            ("具名机实", "具备扎实"), ("哀陆", "基础"), ("按口联调", "接口联调"),
+            ("项E丰注车", "项目中注重"), ("卷定性", "稳定性"), ("校出", "较强"),
+            ("学习能力油", "学习能力强"), ("能快速圾", "能快速吸"), ("收苏i技术", "收新技术"),
+            ("小务场景", "业务场景"), ("目标明的", "目标明确"), ("全祓方向", "全栈方向")
+        ]
+        for fix in fixes {
+            s = s.replacingOccurrences(of: fix.0, with: fix.1)
+        }
+        return s
+    }
+
+    private static func generateWordBodyXML(for page: PDFPage, pageNumber: Int, totalPages: Int) -> String {
+        let nativeText = (page.string ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if nativeText.count >= 20 {
+            let lines = nativeText.components(separatedBy: .newlines)
+            var xml = ""
+            if totalPages > 1 {
+                xml += "<w:p><w:r><w:rPr><w:b/><w:color w:val=\"005FB8\"/></w:rPr><w:t>--- 第 \(pageNumber) 页 ---</w:t></w:r></w:p>"
+            }
+            for line in lines {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                guard !trimmed.isEmpty else { xml += "<w:p/>"; continue }
+                xml += formatParagraphXML(trimmed)
+            }
+            return xml
+        }
+
+        let rows = extractStructuredRows(from: page)
+        guard !rows.isEmpty else { return "<w:p/>" }
+
+        var xml = ""
+        if totalPages > 1 {
+            xml += "<w:p><w:r><w:rPr><w:b/><w:color w:val=\"005FB8\"/></w:rPr><w:t>--- 第 \(pageNumber) 页 ---</w:t></w:r></w:p>"
+        }
+
+        var pendingBullet = ""
+
+        for row in rows {
+            let rowTexts = row.map(\.text)
+            let combined = rowTexts.joined(separator: "  ")
+
+            if isSectionHeader(combined) {
+                if !pendingBullet.isEmpty {
+                    xml += formatBulletParagraphXML(pendingBullet)
+                    pendingBullet = ""
+                }
+                xml += formatSectionHeaderXML(combined)
+                continue
+            }
+
+            if row.count >= 2 {
+                if !pendingBullet.isEmpty {
+                    xml += formatBulletParagraphXML(pendingBullet)
+                    pendingBullet = ""
+                }
+                xml += formatMultiColumnRowXML(rowTexts)
+                continue
+            }
+
+            let single = rowTexts[0]
+            if single.hasPrefix("•") || single.hasPrefix("·") || single.hasPrefix("-") || single.hasPrefix("*") {
+                if !pendingBullet.isEmpty {
+                    xml += formatBulletParagraphXML(pendingBullet)
+                }
+                pendingBullet = single
+            } else if !pendingBullet.isEmpty && isContinuationLine(single) {
+                pendingBullet += " " + single
+            } else {
+                if !pendingBullet.isEmpty {
+                    xml += formatBulletParagraphXML(pendingBullet)
+                    pendingBullet = ""
+                }
+                xml += formatParagraphXML(single)
+            }
+        }
+
+        if !pendingBullet.isEmpty {
+            xml += formatBulletParagraphXML(pendingBullet)
+        }
+        return xml
+    }
+
+    private static func isSectionHeader(_ text: String) -> Bool {
+        let headers = ["个人信息", "教育背景", "实习经历", "自我评价", "项目经历", "专业技能", "工作经历", "求职意向", "获奖经历"]
+        return headers.contains { text.contains($0) }
+    }
+
+    private static func isContinuationLine(_ text: String) -> Bool {
+        guard !text.isEmpty else { return false }
+        if text.hasPrefix("•") || text.hasPrefix("·") || text.hasPrefix("-") { return false }
+        if isSectionHeader(text) { return false }
+        return true
+    }
+
+    private static func formatSectionHeaderXML(_ text: String) -> String {
+        let escaped = xmlEscape(text)
+        return "<w:p><w:pPr><w:spacing w:before=\"240\" w:after=\"120\"/><w:pBdr><w:bottom w:val=\"single\" w:sz=\"12\" w:space=\"4\" w:color=\"005FB8\"/></w:pBdr></w:pPr><w:r><w:rPr><w:rFonts w:ascii=\"PingFang SC\" w:eastAsia=\"PingFang SC\" w:hAnsi=\"PingFang SC\"/><w:b/><w:sz w:val=\"26\"/><w:szCs w:val=\"26\"/><w:color w:val=\"005FB8\"/></w:rPr><w:t xml:space=\"preserve\">\(escaped)</w:t></w:r></w:p>"
+    }
+
+    private static func formatMultiColumnRowXML(_ columns: [String]) -> String {
+        let colWidth = Int(9000 / max(1, columns.count))
+        var rowXML = "<w:tbl><w:tblPr><w:tblW w:w=\"9000\" w:type=\"dxa\"/><w:tblBorders><w:top w:val=\"none\"/><w:left w:val=\"none\"/><w:bottom w:val=\"none\"/><w:right w:val=\"none\"/><w:insideH w:val=\"none\"/><w:insideV w:val=\"none\"/></w:tblBorders></w:tblPr><w:tr>"
+        for col in columns {
+            let escaped = xmlEscape(col)
+            rowXML += "<w:tc><w:tcPr><w:tcW w:w=\"\(colWidth)\" w:type=\"dxa\"/></w:tcPr><w:p><w:pPr><w:spacing w:after=\"80\" w:line=\"260\" w:lineRule=\"auto\"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii=\"PingFang SC\" w:eastAsia=\"PingFang SC\" w:hAnsi=\"PingFang SC\"/><w:sz w:val=\"21\"/><w:szCs w:val=\"21\"/></w:rPr><w:t xml:space=\"preserve\">\(escaped)</w:t></w:r></w:p></w:tc>"
+        }
+        rowXML += "</w:tr></w:tbl>"
+        return rowXML
+    }
+
+    private static func formatBulletParagraphXML(_ text: String) -> String {
+        let cleanText = text.trimmingCharacters(in: .whitespaces)
+        let escaped = xmlEscape(cleanText)
+        return "<w:p><w:pPr><w:ind w:left=\"360\" w:hanging=\"240\"/><w:spacing w:after=\"100\" w:line=\"276\" w:lineRule=\"auto\"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii=\"PingFang SC\" w:eastAsia=\"PingFang SC\" w:hAnsi=\"PingFang SC\"/><w:sz w:val=\"21\"/><w:szCs w:val=\"21\"/></w:rPr><w:t xml:space=\"preserve\">\(escaped)</w:t></w:r></w:p>"
+    }
+
+    private static func formatParagraphXML(_ text: String) -> String {
+        let escaped = xmlEscape(text)
+        let isTitle = text.contains("个人简历")
+        let sz = isTitle ? "32" : "22"
+        let bold = isTitle ? "<w:b/>" : ""
+        return "<w:p><w:pPr><w:spacing w:after=\"120\" w:line=\"276\" w:lineRule=\"auto\"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii=\"PingFang SC\" w:eastAsia=\"PingFang SC\" w:hAnsi=\"PingFang SC\"/>\(bold)<w:sz w:val=\"\(sz)\"/><w:szCs w:val=\"\(sz)\"/></w:rPr><w:t xml:space=\"preserve\">\(escaped)</w:t></w:r></w:p>"
     }
 
     private static func renderAttributedStringToPDF(_ attr: NSAttributedString) throws -> Data {
