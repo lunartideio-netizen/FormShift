@@ -15,8 +15,15 @@ public enum PDFWorkbenchEngine {
         guard !imageURLs.isEmpty else {
             throw ConversionError.invalidOptions("未选择图片文件")
         }
+        let destScoped = destinationURL.startAccessingSecurityScopedResource()
+        defer { if destScoped { destinationURL.stopAccessingSecurityScopedResource() } }
+        for u in imageURLs { _ = u.startAccessingSecurityScopedResource() }
+        defer { for u in imageURLs { u.stopAccessingSecurityScopedResource() } }
+
         let fileManager = FileManager.default
-        let tempURL = FileSafety.temporaryURL(for: destinationURL, jobID: UUID())
+        let tempURL = fileManager.temporaryDirectory
+            .appendingPathComponent("formshift_imgpdf_\(UUID().uuidString)")
+            .appendingPathExtension("pdf")
         try? fileManager.removeItem(at: tempURL)
         try fileManager.createDirectory(at: tempURL.deletingLastPathComponent(), withIntermediateDirectories: true)
 
@@ -79,10 +86,9 @@ public enum PDFWorkbenchEngine {
             throw ConversionError.processFailed("写入 PDF 失败")
         }
 
-        if fileManager.fileExists(atPath: destinationURL.path) {
-            try fileManager.removeItem(at: destinationURL)
-        }
-        try fileManager.moveItem(at: tempURL, to: destinationURL)
+        let data = try Data(contentsOf: tempURL)
+        try data.write(to: destinationURL, options: .atomic)
+        try? fileManager.removeItem(at: tempURL)
         progress?(1.0)
         return destinationURL
     }
@@ -95,8 +101,15 @@ public enum PDFWorkbenchEngine {
         guard !pdfURLs.isEmpty else {
             throw ConversionError.invalidOptions("未选择要合并的 PDF 文件")
         }
+        let destScoped = destinationURL.startAccessingSecurityScopedResource()
+        defer { if destScoped { destinationURL.stopAccessingSecurityScopedResource() } }
+        for u in pdfURLs { _ = u.startAccessingSecurityScopedResource() }
+        defer { for u in pdfURLs { u.stopAccessingSecurityScopedResource() } }
+
         let fileManager = FileManager.default
-        let tempURL = FileSafety.temporaryURL(for: destinationURL, jobID: UUID())
+        let tempURL = fileManager.temporaryDirectory
+            .appendingPathComponent("formshift_merge_\(UUID().uuidString)")
+            .appendingPathExtension("pdf")
         try? fileManager.removeItem(at: tempURL)
         try fileManager.createDirectory(at: tempURL.deletingLastPathComponent(), withIntermediateDirectories: true)
 
@@ -121,10 +134,9 @@ public enum PDFWorkbenchEngine {
             throw ConversionError.processFailed("合并 PDF 写入失败")
         }
 
-        if fileManager.fileExists(atPath: destinationURL.path) {
-            try fileManager.removeItem(at: destinationURL)
-        }
-        try fileManager.moveItem(at: tempURL, to: destinationURL)
+        let data = try Data(contentsOf: tempURL)
+        try data.write(to: destinationURL, options: .atomic)
+        try? fileManager.removeItem(at: tempURL)
         progress?(1.0)
         return destinationURL
     }
@@ -135,6 +147,11 @@ public enum PDFWorkbenchEngine {
         strategy: PDFSplitStrategy,
         progress: (@Sendable (Double) -> Void)? = nil
     ) throws -> [URL] {
+        let srcScoped = pdfURL.startAccessingSecurityScopedResource()
+        defer { if srcScoped { pdfURL.stopAccessingSecurityScopedResource() } }
+        let destScoped = destinationDirectory.startAccessingSecurityScopedResource()
+        defer { if destScoped { destinationDirectory.stopAccessingSecurityScopedResource() } }
+
         guard let sourceDoc = PDFDocument(url: pdfURL), sourceDoc.pageCount > 0 else {
             throw ConversionError.unsupportedInput(pdfURL)
         }
@@ -205,7 +222,9 @@ public enum PDFWorkbenchEngine {
                     counter += 1
                 } while fileManager.fileExists(atPath: targetURL.path)
             }
-            guard newDoc.write(to: targetURL) else {
+            if let data = newDoc.dataRepresentation() {
+                try data.write(to: targetURL, options: .atomic)
+            } else if !newDoc.write(to: targetURL) {
                 throw ConversionError.processFailed("保存拆分 PDF 失败：\(targetURL.lastPathComponent)")
             }
             createdURLs.append(targetURL)
@@ -221,6 +240,11 @@ public enum PDFWorkbenchEngine {
         destinationURL: URL,
         progress: (@Sendable (Double) -> Void)? = nil
     ) throws -> URL {
+        let srcScoped = pdfURL.startAccessingSecurityScopedResource()
+        defer { if srcScoped { pdfURL.stopAccessingSecurityScopedResource() } }
+        let destScoped = destinationURL.startAccessingSecurityScopedResource()
+        defer { if destScoped { destinationURL.stopAccessingSecurityScopedResource() } }
+
         guard let sourceDoc = PDFDocument(url: pdfURL), sourceDoc.pageCount > 0 else {
             throw ConversionError.unsupportedInput(pdfURL)
         }
@@ -229,7 +253,9 @@ public enum PDFWorkbenchEngine {
             throw ConversionError.invalidOptions("必须保留至少一页")
         }
         let fileManager = FileManager.default
-        let tempURL = FileSafety.temporaryURL(for: destinationURL, jobID: UUID())
+        let tempURL = fileManager.temporaryDirectory
+            .appendingPathComponent("formshift_reorder_\(UUID().uuidString)")
+            .appendingPathExtension("pdf")
         try? fileManager.removeItem(at: tempURL)
         try fileManager.createDirectory(at: tempURL.deletingLastPathComponent(), withIntermediateDirectories: true)
 
@@ -254,10 +280,9 @@ public enum PDFWorkbenchEngine {
             throw ConversionError.processFailed("重排 PDF 写入失败")
         }
 
-        if fileManager.fileExists(atPath: destinationURL.path) {
-            try fileManager.removeItem(at: destinationURL)
-        }
-        try fileManager.moveItem(at: tempURL, to: destinationURL)
+        let data = try Data(contentsOf: tempURL)
+        try data.write(to: destinationURL, options: .atomic)
+        try? fileManager.removeItem(at: tempURL)
         progress?(1.0)
         return destinationURL
     }
@@ -269,6 +294,11 @@ public enum PDFWorkbenchEngine {
         destinationDirectory: URL,
         progress: (@Sendable (Double) -> Void)? = nil
     ) throws -> [URL] {
+        let srcScoped = pdfURL.startAccessingSecurityScopedResource()
+        defer { if srcScoped { pdfURL.stopAccessingSecurityScopedResource() } }
+        let destScoped = destinationDirectory.startAccessingSecurityScopedResource()
+        defer { if destScoped { destinationDirectory.stopAccessingSecurityScopedResource() } }
+
         guard let sourceDoc = CGPDFDocument(pdfURL as CFURL), sourceDoc.numberOfPages > 0 else {
             throw ConversionError.unsupportedInput(pdfURL)
         }

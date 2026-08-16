@@ -107,17 +107,12 @@ struct PDFMergeToolView: View {
             HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Text("待合并文件列表 (共 \(items.count) 项，预计 \(totalEstimatedPages) 页)")
+                        Text("待合并文件 (共 \(items.count) 项，预计 \(totalEstimatedPages) 页)")
                             .font(.headline)
                             .foregroundStyle(FormShiftTheme.graphite)
                         Spacer()
-                        Button("添加文件", systemImage: "plus") {
-                            chooseFiles()
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
                         if !items.isEmpty {
-                            Button("清空", systemImage: "trash", role: .destructive) {
+                            Button("清空列表", systemImage: "trash", role: .destructive) {
                                 items.removeAll()
                             }
                             .buttonStyle(.bordered)
@@ -128,49 +123,85 @@ struct PDFMergeToolView: View {
                     if items.isEmpty {
                         dropZone
                     } else {
-                        List {
-                            ForEach(items.indices, id: \.self) { idx in
-                                let item = items[idx]
-                                HStack(spacing: 12) {
-                                    Text("\(idx + 1)")
-                                        .font(.caption.monospacedDigit().weight(.bold))
-                                        .foregroundStyle(.secondary)
-                                        .frame(width: 20)
-                                    Image(systemName: item.isPDF ? "doc.richtext" : "photo")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundStyle(item.isPDF ? FormShiftTheme.danger : FormShiftTheme.cobalt)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(item.url.lastPathComponent)
-                                            .font(.callout.weight(.medium))
-                                            .lineLimit(1)
-                                        Text(item.isPDF ? "PDF 文件 · \(item.pageCount) 页" : "图片文件 · \(ByteCountFormatter.string(fromByteCount: item.fileSize, countStyle: .file))")
-                                            .font(.caption2)
+                        VStack(spacing: 10) {
+                            List {
+                                ForEach(items.indices, id: \.self) { idx in
+                                    let item = items[idx]
+                                    HStack(spacing: 12) {
+                                        Text("\(idx + 1)")
+                                            .font(.caption.monospacedDigit().weight(.bold))
                                             .foregroundStyle(.secondary)
+                                            .frame(width: 20)
+                                        Image(systemName: item.isPDF ? "doc.richtext" : "photo")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundStyle(item.isPDF ? FormShiftTheme.danger : FormShiftTheme.cobalt)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(item.url.lastPathComponent)
+                                                .font(.callout.weight(.medium))
+                                                .lineLimit(1)
+                                            Text(item.isPDF ? "PDF 文件 · \(item.pageCount) 页" : "图片文件 · \(ByteCountFormatter.string(fromByteCount: item.fileSize, countStyle: .file))")
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        Spacer()
+                                        Button("上移", systemImage: "arrow.up") {
+                                            moveItem(from: idx, to: idx - 1)
+                                        }
+                                        .labelStyle(.iconOnly)
+                                        .buttonStyle(.plain)
+                                        .disabled(idx == 0)
+                                        Button("下移", systemImage: "arrow.down") {
+                                            moveItem(from: idx, to: idx + 1)
+                                        }
+                                        .labelStyle(.iconOnly)
+                                        .buttonStyle(.plain)
+                                        .disabled(idx == items.count - 1)
+                                        Button("移除", systemImage: "xmark.circle", role: .destructive) {
+                                            items.remove(at: idx)
+                                        }
+                                        .labelStyle(.iconOnly)
+                                        .buttonStyle(.plain)
                                     }
-                                    Spacer()
-                                    Button("上移", systemImage: "arrow.up") {
-                                        moveItem(from: idx, to: idx - 1)
-                                    }
-                                    .labelStyle(.iconOnly)
-                                    .buttonStyle(.plain)
-                                    .disabled(idx == 0)
-                                    Button("下移", systemImage: "arrow.down") {
-                                        moveItem(from: idx, to: idx + 1)
-                                    }
-                                    .labelStyle(.iconOnly)
-                                    .buttonStyle(.plain)
-                                    .disabled(idx == items.count - 1)
-                                    Button("移除", systemImage: "xmark.circle", role: .destructive) {
-                                        items.remove(at: idx)
-                                    }
-                                    .labelStyle(.iconOnly)
-                                    .buttonStyle(.plain)
+                                    .padding(.vertical, 4)
                                 }
-                                .padding(.vertical, 4)
+                            }
+                            .listStyle(.inset(alternatesRowBackgrounds: true))
+                            .panelSurface(radius: 12)
+                            .dropDestination(for: URL.self) { urls, _ in
+                                addFiles(urls)
+                                return true
+                            }
+
+                            Button {
+                                chooseFiles()
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundStyle(FormShiftTheme.cobalt)
+                                    Text("添加或拖放更多文件")
+                                        .font(.callout.weight(.medium))
+                                        .foregroundStyle(FormShiftTheme.graphite)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(isDropTargeted ? FormShiftTheme.cobalt.opacity(0.08) : Color(nsColor: .windowBackgroundColor).opacity(0.45))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .stroke(isDropTargeted ? FormShiftTheme.cobalt : FormShiftTheme.graphite.opacity(0.16), style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .dropDestination(for: URL.self) { urls, _ in
+                                addFiles(urls)
+                                return true
+                            } isTargeted: { targeted in
+                                isDropTargeted = targeted
                             }
                         }
-                        .listStyle(.inset(alternatesRowBackgrounds: true))
-                        .panelSurface(radius: 12)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -315,6 +346,7 @@ struct PDFMergeToolView: View {
         panel.nameFieldStringValue = outputFileName.isEmpty ? "合并文档.pdf" : "\(outputFileName).pdf"
         panel.allowedContentTypes = [.pdf]
         guard panel.runModal() == .OK, let destURL = panel.url else { return }
+        _ = destURL.startAccessingSecurityScopedResource()
 
         isProcessing = true
         progressValue = 0
@@ -325,6 +357,9 @@ struct PDFMergeToolView: View {
         let options = PDFImageMergeOptions(pageSizePreset: pageSizePreset, marginPoints: marginPoints)
 
         Task.detached(priority: .userInitiated) {
+            defer {
+                destURL.stopAccessingSecurityScopedResource()
+            }
             do {
                 let allImages = mergeItems.allSatisfy { !$0.isPDF }
                 let allPDFs = mergeItems.allSatisfy { $0.isPDF }
@@ -570,6 +605,7 @@ struct PDFSplitToolView: View {
         panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let outputDir = panel.url else { return }
+        _ = outputDir.startAccessingSecurityScopedResource()
 
         isProcessing = true
         progressValue = 0
@@ -584,6 +620,9 @@ struct PDFSplitToolView: View {
         }
 
         Task.detached(priority: .userInitiated) {
+            defer {
+                outputDir.stopAccessingSecurityScopedResource()
+            }
             do {
                 let results = try PDFWorkbenchEngine.splitPDF(
                     pdfURL: src,
@@ -879,6 +918,7 @@ struct PDFReorderRotateToolView: View {
         panel.nameFieldStringValue = "\(baseName)_已重排.pdf"
         panel.allowedContentTypes = [.pdf]
         guard panel.runModal() == .OK, let destURL = panel.url else { return }
+        _ = destURL.startAccessingSecurityScopedResource()
 
         isProcessing = true
         progressValue = 0
@@ -887,6 +927,9 @@ struct PDFReorderRotateToolView: View {
         let specs = pageSpecs
 
         Task.detached(priority: .userInitiated) {
+            defer {
+                destURL.stopAccessingSecurityScopedResource()
+            }
             do {
                 let finalURL = try PDFWorkbenchEngine.reorderAndRotatePDF(
                     pdfURL: src,
@@ -1116,6 +1159,7 @@ struct PDFExtractImagesToolView: View {
         panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let outputDir = panel.url else { return }
+        _ = outputDir.startAccessingSecurityScopedResource()
 
         isProcessing = true
         progressValue = 0
@@ -1132,6 +1176,9 @@ struct PDFExtractImagesToolView: View {
         let targetFormat = format
 
         Task.detached(priority: .userInitiated) {
+            defer {
+                outputDir.stopAccessingSecurityScopedResource()
+            }
             do {
                 let results = try PDFWorkbenchEngine.exportPDFPagesToImages(
                     pdfURL: src,
