@@ -51,6 +51,76 @@ enum FormShiftTheme {
     static let danger = Color(red: 0.88, green: 0.26, blue: 0.28)
     static let hairline = Color.primary.opacity(0.08)
 
+    static let brandLogoBackground = Color(
+        nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.name.rawValue.lowercased().contains("dark") ||
+                         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark
+                ? NSColor(srgbRed: 0.13, green: 0.14, blue: 0.17, alpha: 1.0)
+                : NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)
+        }
+    )
+
+    static let brandLogoBorder = Color(
+        nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.name.rawValue.lowercased().contains("dark") ||
+                         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark
+                ? NSColor(white: 1.0, alpha: 0.16)
+                : NSColor(srgbRed: 0.82, green: 0.84, blue: 0.88, alpha: 1.0)
+        }
+    )
+
+    static let brandLogoShadow = Color(
+        nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.name.rawValue.lowercased().contains("dark") ||
+                         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark
+                ? NSColor(white: 0.0, alpha: 0.35)
+                : NSColor(white: 0.0, alpha: 0.06)
+        }
+    )
+
+    static let brandLogoIconColor = Color(
+        nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.name.rawValue.lowercased().contains("dark") ||
+                         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark
+                ? NSColor(srgbRed: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)
+                : NSColor(srgbRed: 0.14, green: 0.45, blue: 0.98, alpha: 1.0)
+        }
+    )
+
+    static let pickerBackground = Color(
+        nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.name.rawValue.lowercased().contains("dark") ||
+                         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark
+                ? NSColor(srgbRed: 0.15, green: 0.16, blue: 0.19, alpha: 1.0)
+                : NSColor(srgbRed: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)
+        }
+    )
+
+    static let pickerBorder = Color(
+        nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.name.rawValue.lowercased().contains("dark") ||
+                         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark
+                ? NSColor(white: 1.0, alpha: 0.16)
+                : NSColor(srgbRed: 0.82, green: 0.84, blue: 0.88, alpha: 1.0)
+        }
+    )
+
+    static let pickerShadow = Color(
+        nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.name.rawValue.lowercased().contains("dark") ||
+                         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark
+                ? NSColor(white: 0.0, alpha: 0.25)
+                : NSColor(white: 0.0, alpha: 0.05)
+        }
+    )
+
     static func formatColor(_ format: String) -> Color {
         switch format.lowercased() {
         case "png", "jpeg", "jpg", "heic", "webp", "avif", "bmp", "tiff":
@@ -106,21 +176,24 @@ struct InspectorPicker<Content: View>: View {
                     .lineLimit(1)
                 Spacer(minLength: 4)
                 Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
+                    .fill(FormShiftTheme.pickerBackground)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                    .stroke(FormShiftTheme.pickerBorder, lineWidth: 1)
             )
+            .shadow(color: FormShiftTheme.pickerShadow, radius: 2, x: 0, y: 1)
+            .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
     }
 }
 

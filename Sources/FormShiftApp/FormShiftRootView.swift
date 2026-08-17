@@ -98,25 +98,16 @@ private struct FormShiftSidebar: View {
         HStack(spacing: 10) {
             ZStack {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.18, green: 0.20, blue: 0.24),
-                                Color(red: 0.08, green: 0.09, blue: 0.12)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(FormShiftTheme.brandLogoBackground)
                     .frame(width: 34, height: 34)
                     .overlay {
                         RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                            .stroke(FormShiftTheme.brandLogoBorder, lineWidth: 1)
                     }
-                    .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
+                    .shadow(color: FormShiftTheme.brandLogoShadow, radius: 4, x: 0, y: 2)
                 Image(systemName: "arrow.left.arrow.right")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(FormShiftTheme.brandLogoIconColor)
             }
 
             VStack(alignment: .leading, spacing: 1) {

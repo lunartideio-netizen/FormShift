@@ -71,11 +71,15 @@ private struct MenuBarPopoverView: View {
             HStack(spacing: 10) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(FormShiftTheme.cobalt)
+                        .fill(FormShiftTheme.brandLogoBackground)
                         .frame(width: 28, height: 28)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .stroke(FormShiftTheme.brandLogoBorder, lineWidth: 1)
+                        }
                     Image(systemName: "arrow.left.arrow.right")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(FormShiftTheme.brandLogoIconColor)
                 }
                 VStack(alignment: .leading, spacing: 1) {
                     Text("FormShift")
