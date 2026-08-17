@@ -430,24 +430,31 @@ struct PDFToOfficeToolView: View {
                             Text("目标格式")
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
-                            Picker("目标格式", selection: $targetFormat) {
+                            InspectorPicker(displayTitle: targetFormat.displayName) {
                                 ForEach(PDFToOfficeFormat.allCases) { fmt in
-                                    Text(fmt.displayName).tag(fmt)
+                                    Button(fmt.displayName) {
+                                        targetFormat = fmt
+                                    }
                                 }
                             }
-                            .labelsHidden()
                         }
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text("导出页面范围")
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
-                            Picker("导出范围", selection: $pageScope) {
-                                Text("全部页面").tag(PDFPageExportScope.allPages)
-                                Text("仅第 1 页").tag(PDFPageExportScope.firstPage)
-                                Text("指定页码").tag(PDFPageExportScope.customRange)
+                            let scopeTitle: String = {
+                                switch pageScope {
+                                case .allPages: return "全部页面"
+                                case .firstPage: return "仅第 1 页"
+                                case .customRange: return "指定页码"
+                                }
+                            }()
+                            InspectorPicker(displayTitle: scopeTitle) {
+                                Button("全部页面") { pageScope = .allPages }
+                                Button("仅第 1 页") { pageScope = .firstPage }
+                                Button("指定页码") { pageScope = .customRange }
                             }
-                            .labelsHidden()
                         }
 
                         if pageScope == .customRange {

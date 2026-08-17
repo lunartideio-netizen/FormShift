@@ -4,7 +4,9 @@ import SwiftUI
 enum FormShiftTheme {
     static let ceramic = Color(
         nsColor: NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let isDark = appearance.name.rawValue.lowercased().contains("dark") ||
+                         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark
                 ? NSColor(srgbRed: 0.070, green: 0.078, blue: 0.092, alpha: 1)
                 : NSColor(srgbRed: 0.965, green: 0.970, blue: 0.978, alpha: 1)
         }
@@ -12,7 +14,9 @@ enum FormShiftTheme {
 
     static let machineSilver = Color(
         nsColor: NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let isDark = appearance.name.rawValue.lowercased().contains("dark") ||
+                         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark
                 ? NSColor(srgbRed: 0.140, green: 0.150, blue: 0.170, alpha: 1)
                 : NSColor(srgbRed: 0.895, green: 0.905, blue: 0.920, alpha: 1)
         }
@@ -20,7 +24,9 @@ enum FormShiftTheme {
 
     static let graphite = Color(
         nsColor: NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let isDark = appearance.name.rawValue.lowercased().contains("dark") ||
+                         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark
                 ? NSColor(srgbRed: 0.93, green: 0.94, blue: 0.96, alpha: 1)
                 : NSColor(srgbRed: 0.11, green: 0.13, blue: 0.15, alpha: 1)
         }
@@ -28,7 +34,9 @@ enum FormShiftTheme {
 
     static let secondaryGraphite = Color(
         nsColor: NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let isDark = appearance.name.rawValue.lowercased().contains("dark") ||
+                         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark
                 ? NSColor(srgbRed: 0.60, green: 0.64, blue: 0.70, alpha: 1)
                 : NSColor(srgbRed: 0.40, green: 0.44, blue: 0.49, alpha: 1)
         }
@@ -68,26 +76,51 @@ struct PanelSurface: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .background(
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(Color(nsColor: .windowBackgroundColor).opacity(elevated ? 0.85 : 0.60))
+                    .fill(Color(nsColor: .controlBackgroundColor).opacity(elevated ? 0.95 : 0.80))
             )
             .overlay {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
                     .strokeBorder(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.18),
-                                Color.primary.opacity(0.06)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
+                        Color.primary.opacity(0.08),
                         lineWidth: 1
                     )
             }
-            .shadow(color: Color.black.opacity(elevated ? 0.08 : 0.03), radius: elevated ? 10 : 4, x: 0, y: elevated ? 4 : 2)
+            .shadow(color: Color.black.opacity(elevated ? 0.08 : 0.03), radius: elevated ? 8 : 3, x: 0, y: elevated ? 3 : 1)
+    }
+}
+
+struct InspectorPicker<Content: View>: View {
+    let displayTitle: String
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        Menu {
+            content()
+        } label: {
+            HStack(spacing: 6) {
+                Text(displayTitle)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(FormShiftTheme.graphite)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+            )
+        }
+        .menuStyle(.borderlessButton)
     }
 }
 

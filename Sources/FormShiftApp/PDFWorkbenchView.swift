@@ -224,12 +224,13 @@ struct PDFMergeToolView: View {
                             Text("图片页面版式")
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
-                            Picker("版式", selection: $pageSizePreset) {
+                            InspectorPicker(displayTitle: pageSizePreset.displayName) {
                                 ForEach(PDFPageSizePreset.allCases, id: \.self) { preset in
-                                    Text(preset.displayName).tag(preset)
+                                    Button(preset.displayName) {
+                                        pageSizePreset = preset
+                                    }
                                 }
                             }
-                            .labelsHidden()
                         }
 
                         if pageSizePreset != .matchImage {
@@ -1058,24 +1059,37 @@ struct PDFExtractImagesToolView: View {
                             Text("目标格式")
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
-                            Picker("目标格式", selection: $format) {
-                                Text("PNG (无损)").tag(FormatID.png)
-                                Text("JPEG").tag(FormatID.jpeg)
-                                Text("TIFF").tag(FormatID.tiff)
+                            let formatTitle: String = {
+                                switch format {
+                                case .png: return "PNG (无损)"
+                                case .jpeg: return "JPEG"
+                                case .tiff: return "TIFF"
+                                default: return format.displayName
+                                }
+                            }()
+                            InspectorPicker(displayTitle: formatTitle) {
+                                Button("PNG (无损)") { format = .png }
+                                Button("JPEG") { format = .jpeg }
+                                Button("TIFF") { format = .tiff }
                             }
-                            .labelsHidden()
                         }
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text("导出页面范围")
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
-                            Picker("导出范围", selection: $scope) {
-                                Text("全部页面").tag(PDFPageExportScope.allPages)
-                                Text("仅第 1 页").tag(PDFPageExportScope.firstPage)
-                                Text("指定页码").tag(PDFPageExportScope.customRange)
+                            let scopeTitle: String = {
+                                switch scope {
+                                case .allPages: return "全部页面"
+                                case .firstPage: return "仅第 1 页"
+                                case .customRange: return "指定页码"
+                                }
+                            }()
+                            InspectorPicker(displayTitle: scopeTitle) {
+                                Button("全部页面") { scope = .allPages }
+                                Button("仅第 1 页") { scope = .firstPage }
+                                Button("指定页码") { scope = .customRange }
                             }
-                            .labelsHidden()
                         }
 
                         if scope == .customRange {
@@ -1088,12 +1102,19 @@ struct PDFExtractImagesToolView: View {
                             Text("渲染精度")
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
-                            Picker("渲染精度", selection: $scale) {
-                                Text("标准 · 1×").tag(1)
-                                Text("清晰 · 2×").tag(2)
-                                Text("高精度 · 3×").tag(3)
+                            let scaleTitle: String = {
+                                switch scale {
+                                case 1: return "标准 · 1×"
+                                case 2: return "清晰 · 2×"
+                                case 3: return "高精度 · 3×"
+                                default: return "\(scale)×"
+                                }
+                            }()
+                            InspectorPicker(displayTitle: scaleTitle) {
+                                Button("标准 · 1×") { scale = 1 }
+                                Button("清晰 · 2×") { scale = 2 }
+                                Button("高精度 · 3×") { scale = 3 }
                             }
-                            .labelsHidden()
                         }
 
                         Toggle("智能裁剪白边", isOn: $trimBorders)

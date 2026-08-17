@@ -171,11 +171,11 @@ struct GIFSplitToolView: View {
                             Text("导出图片格式")
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
-                            Picker("格式", selection: $format) {
-                                Text("PNG (无损推荐)").tag(FormatID.png)
-                                Text("JPEG").tag(FormatID.jpeg)
+                            let fmtTitle = format == .png ? "PNG (无损推荐)" : "JPEG"
+                            InspectorPicker(displayTitle: fmtTitle) {
+                                Button("PNG (无损推荐)") { format = .png }
+                                Button("JPEG") { format = .jpeg }
                             }
-                            .labelsHidden()
                         }
                     }
                     .padding(14)
@@ -436,13 +436,21 @@ struct SequenceToGIFToolView: View {
                             Text("循环次数")
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
-                            Picker("循环模式", selection: $loopCount) {
-                                Text("无限循环").tag(0)
-                                Text("仅播 1 次").tag(1)
-                                Text("循环 3 次").tag(3)
-                                Text("循环 5 次").tag(5)
+                            let loopTitle: String = {
+                                switch loopCount {
+                                case 0: return "无限循环"
+                                case 1: return "仅播 1 次"
+                                case 3: return "循环 3 次"
+                                case 5: return "循环 5 次"
+                                default: return "循环 \(loopCount) 次"
+                                }
+                            }()
+                            InspectorPicker(displayTitle: loopTitle) {
+                                Button("无限循环") { loopCount = 0 }
+                                Button("仅播 1 次") { loopCount = 1 }
+                                Button("循环 3 次") { loopCount = 3 }
+                                Button("循环 5 次") { loopCount = 5 }
                             }
-                            .labelsHidden()
                         }
                     }
                     .padding(14)
@@ -709,12 +717,19 @@ struct VideoExtractFramesToolView: View {
                             Text("导出格式")
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
-                            Picker("格式", selection: $format) {
-                                Text("PNG (高清)").tag(FormatID.png)
-                                Text("JPEG").tag(FormatID.jpeg)
-                                Text("TIFF").tag(FormatID.tiff)
+                            let formatTitle: String = {
+                                switch format {
+                                case .png: return "PNG (高清)"
+                                case .jpeg: return "JPEG"
+                                case .tiff: return "TIFF"
+                                default: return format.displayName
+                                }
+                            }()
+                            InspectorPicker(displayTitle: formatTitle) {
+                                Button("PNG (高清)") { format = .png }
+                                Button("JPEG") { format = .jpeg }
+                                Button("TIFF") { format = .tiff }
                             }
-                            .labelsHidden()
                         }
                     }
                     .padding(14)

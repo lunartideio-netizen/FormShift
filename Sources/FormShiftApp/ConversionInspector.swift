@@ -145,12 +145,19 @@ struct ConversionInspector: View {
 
     private var outputLocationSection: some View {
         InspectorSection(title: "保存到", eyebrow: "DESTINATION") {
-            Picker("保存位置", selection: $model.outputLocation) {
+            InspectorPicker(displayTitle: model.outputLocation.title) {
                 ForEach(OutputLocation.allCases) { location in
-                    Text(location.title).tag(location)
+                    Button {
+                        model.outputLocation = location
+                    } label: {
+                        if model.outputLocation == location {
+                            Label(location.title, systemImage: "checkmark")
+                        } else {
+                            Text(location.title)
+                        }
+                    }
                 }
             }
-            .labelsHidden()
             .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(alignment: .leading, spacing: 6) {
@@ -281,38 +288,49 @@ struct ConversionInspector: View {
             switch model.targetFormat.category {
             case .video, .animatedImage:
                 InspectorControlRow(label: "编码器") {
-                    Picker("编码器", selection: $model.codec) {
-                        Text("自动").tag(VideoCodec.automatic)
-                        Text("H.264").tag(VideoCodec.h264)
-                        Text("HEVC").tag(VideoCodec.hevc)
-                        Text("ProRes").tag(VideoCodec.proRes)
-                        Text("VP9").tag(VideoCodec.vp9)
-                        Text("AV1").tag(VideoCodec.av1)
+                    InspectorPicker(displayTitle: model.codec.rawValue) {
+                        ForEach([VideoCodec.automatic, .h264, .hevc, .proRes, .vp9, .av1], id: \.self) { codec in
+                            Button {
+                                model.codec = codec
+                            } label: {
+                                if model.codec == codec {
+                                    Label(codec.rawValue, systemImage: "checkmark")
+                                } else {
+                                    Text(codec.rawValue)
+                                }
+                            }
+                        }
                     }
-                    .labelsHidden()
                 }
 
                 if model.targetFormat.category == .video {
                     InspectorControlRow(label: "视频码率") {
-                        Picker("视频码率", selection: $model.videoBitrateKbps) {
-                            Text("自动").tag(nil as Int?)
-                            Text("2,500 Kbps (紧凑)").tag(2500 as Int?)
-                            Text("4,000 Kbps (标准)").tag(4000 as Int?)
-                            Text("8,000 Kbps (高清)").tag(8000 as Int?)
-                            Text("16,000 Kbps (超清)").tag(16000 as Int?)
+                        let title: String = {
+                            switch model.videoBitrateKbps {
+                            case nil: return "自动"
+                            case 2500: return "2,500 Kbps (紧凑)"
+                            case 4000: return "4,000 Kbps (标准)"
+                            case 8000: return "8,000 Kbps (高清)"
+                            case 16000: return "16,000 Kbps (超清)"
+                            default: return "\(model.videoBitrateKbps!) Kbps"
+                            }
+                        }()
+                        InspectorPicker(displayTitle: title) {
+                            Button("自动") { model.videoBitrateKbps = nil }
+                            Button("2,500 Kbps (紧凑)") { model.videoBitrateKbps = 2500 }
+                            Button("4,000 Kbps (标准)") { model.videoBitrateKbps = 4000 }
+                            Button("8,000 Kbps (高清)") { model.videoBitrateKbps = 8000 }
+                            Button("16,000 Kbps (超清)") { model.videoBitrateKbps = 16000 }
                         }
-                        .labelsHidden()
                     }
                 }
 
                 InspectorControlRow(label: "帧率") {
-                    Picker("帧率", selection: $model.frameRate) {
-                        Text("24 fps").tag(24)
-                        Text("25 fps").tag(25)
-                        Text("30 fps").tag(30)
-                        Text("60 fps").tag(60)
+                    InspectorPicker(displayTitle: "\(model.frameRate) fps") {
+                        ForEach([24, 25, 30, 60], id: \.self) { fps in
+                            Button("\(fps) fps") { model.frameRate = fps }
+                        }
                     }
-                    .labelsHidden()
                 }
 
                 InspectorControlRow(label: "") {
@@ -327,30 +345,53 @@ struct ConversionInspector: View {
 
             case .audio:
                 InspectorControlRow(label: "采样率") {
-                    Picker("采样率", selection: $model.sampleRate) {
-                        Text("44.1 kHz").tag(44_100)
-                        Text("48 kHz").tag(48_000)
-                        Text("96 kHz").tag(96_000)
+                    let title: String = {
+                        switch model.sampleRate {
+                        case 44_100: return "44.1 kHz"
+                        case 48_000: return "48 kHz"
+                        case 96_000: return "96 kHz"
+                        default: return "自动"
+                        }
+                    }()
+                    InspectorPicker(displayTitle: title) {
+                        Button("44.1 kHz") { model.sampleRate = 44_100 }
+                        Button("48 kHz") { model.sampleRate = 48_000 }
+                        Button("96 kHz") { model.sampleRate = 96_000 }
                     }
-                    .labelsHidden()
                 }
                 InspectorControlRow(label: "声道") {
-                    Picker("声道", selection: $model.audioChannels) {
-                        Text("单声道").tag(1)
-                        Text("立体声").tag(2)
+                    let title: String = {
+                        switch model.audioChannels {
+                        case 1: return "单声道"
+                        case 2: return "立体声"
+                        default: return "自动"
+                        }
+                    }()
+                    InspectorPicker(displayTitle: title) {
+                        Button("单声道") { model.audioChannels = 1 }
+                        Button("立体声") { model.audioChannels = 2 }
                     }
-                    .labelsHidden()
                 }
                 InspectorControlRow(label: "音频码率") {
-                    Picker("音频码率", selection: $model.audioBitrateKbps) {
-                        Text("自动").tag(nil as Int?)
-                        Text("96 Kbps").tag(96 as Int?)
-                        Text("128 Kbps (标准)").tag(128 as Int?)
-                        Text("192 Kbps (高质)").tag(192 as Int?)
-                        Text("256 Kbps (无损级)").tag(256 as Int?)
-                        Text("320 Kbps (极限)").tag(320 as Int?)
+                    let title: String = {
+                        switch model.audioBitrateKbps {
+                        case nil: return "自动"
+                        case 96: return "96 Kbps"
+                        case 128: return "128 Kbps (标准)"
+                        case 192: return "192 Kbps (高质)"
+                        case 256: return "256 Kbps (无损级)"
+                        case 320: return "320 Kbps (极限)"
+                        default: return "\(model.audioBitrateKbps!) Kbps"
+                        }
+                    }()
+                    InspectorPicker(displayTitle: title) {
+                        Button("自动") { model.audioBitrateKbps = nil }
+                        Button("96 Kbps") { model.audioBitrateKbps = 96 }
+                        Button("128 Kbps (标准)") { model.audioBitrateKbps = 128 }
+                        Button("192 Kbps (高质)") { model.audioBitrateKbps = 192 }
+                        Button("256 Kbps (无损级)") { model.audioBitrateKbps = 256 }
+                        Button("320 Kbps (极限)") { model.audioBitrateKbps = 320 }
                     }
-                    .labelsHidden()
                 }
                 mediaTrimmingSection
                 InspectorControlRow(label: "") {
@@ -360,12 +401,18 @@ struct ConversionInspector: View {
 
             case .image:
                 InspectorControlRow(label: "色彩配置") {
-                    Picker("色彩配置", selection: $model.colorProfile) {
-                        Text("自动").tag(ImageColorProfile.automatic)
-                        Text("sRGB").tag(ImageColorProfile.sRGB)
-                        Text("Display P3").tag(ImageColorProfile.displayP3)
+                    let title: String = {
+                        switch model.colorProfile {
+                        case .automatic: return "自动"
+                        case .sRGB: return "sRGB"
+                        case .displayP3: return "Display P3"
+                        }
+                    }()
+                    InspectorPicker(displayTitle: title) {
+                        Button("自动") { model.colorProfile = .automatic }
+                        Button("sRGB") { model.colorProfile = .sRGB }
+                        Button("Display P3") { model.colorProfile = .displayP3 }
                     }
-                    .labelsHidden()
                 }
 
                 imageTransformFields
@@ -432,14 +479,23 @@ struct ConversionInspector: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         if !model.removeAudio {
             InspectorControlRow(label: "音频码率") {
-                Picker("音频码率", selection: $model.audioBitrateKbps) {
-                    Text("自动").tag(nil as Int?)
-                    Text("128 Kbps (标准)").tag(128 as Int?)
-                    Text("192 Kbps (高质)").tag(192 as Int?)
-                    Text("256 Kbps (无损级)").tag(256 as Int?)
-                    Text("320 Kbps (极限)").tag(320 as Int?)
+                let title: String = {
+                    switch model.audioBitrateKbps {
+                    case nil: return "自动"
+                    case 128: return "128 Kbps (标准)"
+                    case 192: return "192 Kbps (高质)"
+                    case 256: return "256 Kbps (无损级)"
+                    case 320: return "320 Kbps (极限)"
+                    default: return "\(model.audioBitrateKbps!) Kbps"
+                    }
+                }()
+                InspectorPicker(displayTitle: title) {
+                    Button("自动") { model.audioBitrateKbps = nil }
+                    Button("128 Kbps (标准)") { model.audioBitrateKbps = 128 }
+                    Button("192 Kbps (高质)") { model.audioBitrateKbps = 192 }
+                    Button("256 Kbps (无损级)") { model.audioBitrateKbps = 256 }
+                    Button("320 Kbps (极限)") { model.audioBitrateKbps = 320 }
                 }
-                .labelsHidden()
             }
             InspectorControlRow(label: "") {
                 Toggle("响度标准化 (EBU R128)", isOn: $model.normalizeAudio)
@@ -451,13 +507,13 @@ struct ConversionInspector: View {
     @ViewBuilder
     private var imageTransformFields: some View {
         InspectorControlRow(label: "旋转") {
-            Picker("旋转角度", selection: $model.rotationDegrees) {
-                Text("不旋转").tag(0)
-                Text("90°").tag(90)
-                Text("180°").tag(180)
-                Text("270°").tag(270)
+            let title = model.rotationDegrees == 0 ? "不旋转" : "\(model.rotationDegrees)°"
+            InspectorPicker(displayTitle: title) {
+                Button("不旋转") { model.rotationDegrees = 0 }
+                Button("90°") { model.rotationDegrees = 90 }
+                Button("180°") { model.rotationDegrees = 180 }
+                Button("270°") { model.rotationDegrees = 270 }
             }
-            .labelsHidden()
         }
 
         if model.selectedJob?.sourceFormat?.category == .image {
@@ -480,24 +536,37 @@ struct ConversionInspector: View {
 
     private var pdfRenderScaleField: some View {
         InspectorControlRow(label: "PDF 精度") {
-            Picker("页面渲染精度", selection: $model.pdfImageScale) {
-                Text("标准 · 1×").tag(1)
-                Text("清晰 · 2×").tag(2)
-                Text("高精度 · 3×").tag(3)
+            let title: String = {
+                switch model.pdfImageScale {
+                case 1: return "标准 · 1×"
+                case 2: return "清晰 · 2×"
+                case 3: return "高精度 · 3×"
+                default: return "\(model.pdfImageScale)×"
+                }
+            }()
+            InspectorPicker(displayTitle: title) {
+                Button("标准 · 1×") { model.pdfImageScale = 1 }
+                Button("清晰 · 2×") { model.pdfImageScale = 2 }
+                Button("高精度 · 3×") { model.pdfImageScale = 3 }
             }
-            .labelsHidden()
         }
     }
 
     @ViewBuilder
     private var pdfPageScopeField: some View {
         InspectorControlRow(label: "导出页面") {
-            Picker("导出范围", selection: $model.pdfPageExportScope) {
-                Text("所有页面").tag(PDFPageExportScope.allPages)
-                Text("仅第 1 页").tag(PDFPageExportScope.firstPage)
-                Text("指定页码").tag(PDFPageExportScope.customRange)
+            let title: String = {
+                switch model.pdfPageExportScope {
+                case .allPages: return "所有页面"
+                case .firstPage: return "仅第 1 页"
+                case .customRange: return "指定页码"
+                }
+            }()
+            InspectorPicker(displayTitle: title) {
+                Button("所有页面") { model.pdfPageExportScope = .allPages }
+                Button("仅第 1 页") { model.pdfPageExportScope = .firstPage }
+                Button("指定页码") { model.pdfPageExportScope = .customRange }
             }
-            .labelsHidden()
         }
         if model.pdfPageExportScope == .customRange {
             InspectorControlRow(label: "页码范围") {
